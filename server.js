@@ -30,6 +30,23 @@ app.use((req, res, next) => {
   next();
 });
 
+// Root route handler
+app.get('/', (req, res) => {
+  res.json({
+    message: 'MoodTunes API Server',
+    version: '1.0.0',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/api/health',
+      status: '/api/status',
+      generateTrack: 'POST /api/generate-track',
+      narrate: 'POST /api/narrate'
+    },
+    documentation: 'Visit /api/health for server health information'
+  });
+});
+
 // Load tracks data with error handling
 let tracksData = [];
 try {
@@ -612,6 +629,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📚 Loaded ${tracksData.length} tracks`);
+  console.log(`🔗 Root: http://localhost:${PORT}/`);
   console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
   console.log(`📊 Status: http://localhost:${PORT}/api/status`);
   console.log(`🎯 Generate track: POST http://localhost:${PORT}/api/generate-track`);
