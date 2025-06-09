@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Brain, Sparkles, Music, Heart, AlertCircle, RefreshCw } from 'lucide-react';
+import { Brain, Sparkles, Music, Heart, AlertCircle, RefreshCw, Mic } from 'lucide-react';
 import { GeneratedTrack } from '../types';
 import { apiService } from '../services/api';
 import { useApi } from '../hooks/useApi';
@@ -12,7 +12,18 @@ interface MoodAnalysisProps {
 const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [analysisResults, setAnalysisResults] = useState<any>(null);
+  const [showNarrationOption, setShowNarrationOption] = useState(false);
+  const [narrationAudio, setNarrationAudio] = useState<string | null>(null);
+  const [narrationQuote, setNarrationQuote] = useState<string | null>(null);
+  const [isPlayingNarration, setIsPlayingNarration] = useState(false);
+  
   const { data: track, loading, error, execute } = useApi<GeneratedTrack>();
+  const { 
+    data: narration, 
+    loading: narrationLoading, 
+    error: narrationError, 
+    execute: executeNarration 
+  } = useApi<any>();
 
   const steps = [
     { icon: Brain, text: 'Analyzing emotional tone...', color: 'text-orange-600' },
@@ -76,8 +87,32 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
 
     if (response.data) {
       setTimeout(() => {
+        setShowNarrationOption(true);
         onMusicGenerated(response.data!);
       }, 1500);
+    }
+  };
+
+  const generateNarration = async () => {
+    const response = await executeNarration(() => 
+      apiService.generateNarration({ mood })
+    );
+
+    if (response.data) {
+      setNarrationAudio(response.data.audioUrl);
+      setNarrationQuote(response.data.quote);
+    }
+  };
+
+  const playNarration = () => {
+    if (narrationAudio) {
+      const audio = new Audio(narrationAudio);
+      audio.play().then(() => {
+        setIsPlayingNarration(true);
+        audio.onended = () => setIsPlayingNarration(false);
+      }).catch(error => {
+        console.error('Error playing narration:', error);
+      });
     }
   };
 
@@ -244,6 +279,74 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
             <p className="text-orange-700 text-center">
               Fetching your personalized soundtrack from our music library...
             </p>
+          </div>
+        )}
+
+        {/* Narration Option */}
+        {showNarrationOption && !narrationAudio && (
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-xl border border-purple-200 space-y-4">
+            <div className="flex items-center justify-center space-x-2">
+              <Mic className="w-6 h-6 text-purple-600" />
+              <h3 className="text-xl font-semibold text-purple-900">Get Motivational Audio</h3>
+            </div>
+            <p className="text-purple-700 text-center">
+              Want a personalized motivational message? We can generate an AI-powered voice narration to uplift your spirits!
+            </p>
+            
+            {narrationError && (
+              <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
+                <p className="text-red-600 text-sm text-center">{narrationError}</p>
+                {narrationError.includes('API key') && (
+                  <p className="text-red-500 text-xs text-center mt-1">
+                    API keys required for this feature
+                  </p>
+                )}
+              </div>
+            )}
+            
+            <button
+              onClick={generateNarration}
+              disabled={narrationLoading}
+              className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white py-3 px-6 rounded-lg font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {narrationLoading ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Generating Narration...</span>
+                </div>
+              ) : (
+                'Generate Motivational Audio'
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Narration Player */}
+        {narrationAudio && narrationQuote && (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200 space-y-4">
+            <div className="flex items-center justify-center space-x-2">
+              <Mic className="w-6 h-6 text-green-600" />
+              <h3 className="text-xl font-semibold text-green-900">Your Motivational Message</h3>
+            </div>
+            
+            <div className="bg-white p-4 rounded-lg border border-green-100">
+              <p className="text-green-800 italic text-center">"{narrationQuote}"</p>
+            </div>
+            
+            <button
+              onClick={playNarration}
+              disabled={isPlayingNarration}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 px-6 rounded-lg font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50"
+            >
+              {isPlayingNarration ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="animate-pulse w-4 h-4 bg-white rounded-full"></div>
+                  <span>Playing...</span>
+                </div>
+              ) : (
+                'Play Motivational Audio'
+              )}
+            </button>
           </div>
         )}
       </div>

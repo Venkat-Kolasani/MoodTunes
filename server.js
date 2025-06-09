@@ -65,6 +65,26 @@ const validateGenerateTrackInput = (req, res, next) => {
   next();
 };
 
+// Input validation middleware for narration
+const validateNarrateInput = (req, res, next) => {
+  const { mood } = req.body;
+  
+  if (!mood || typeof mood !== 'string' || mood.trim().length === 0) {
+    return res.status(400).json({ 
+      error: 'Mood is required and must be a non-empty string' 
+    });
+  }
+  
+  if (mood.length > 200) {
+    return res.status(400).json({ 
+      error: 'Mood description is too long (max 200 characters)' 
+    });
+  }
+  
+  req.body.mood = mood.trim();
+  next();
+};
+
 // Helper function to calculate mood similarity
 function calculateMoodSimilarity(trackMood, userMood) {
   const moodSynonyms = {
@@ -128,6 +148,138 @@ function calculateEnergySimilarity(trackEnergy, userEnergy) {
   
   const difference = Math.abs(trackLevel - userLevel);
   return Math.max(0, 1 - (difference / 4));
+}
+
+// Helper function to generate motivational quote using OpenAI
+async function generateMotivationalQuote(mood) {
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+  
+  if (!OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.');
+  }
+
+  const prompt = `Generate a short, powerful motivational quote (1-2 sentences, max 100 words) for someone feeling "${mood}". The quote should be uplifting, encouraging, and help them feel better. Make it personal and inspiring.`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a compassionate motivational speaker who creates personalized, uplifting quotes.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 150,
+        temperature: 0.8,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0]?.message?.content?.trim() || 'You have the strength to overcome any challenge. Believe in yourself.';
+  } catch (error) {
+    console.error('OpenAI API error:', error);
+    // Fallback quotes based on mood
+    const fallbackQuotes = {
+      sad: "Every storm runs out of rain. Your brighter days are coming, and you have the strength to weather this moment.",
+      anxious: "You are braver than you believe, stronger than you seem, and more capable than you imagine. Take it one breath at a time.",
+      stressed: "In the midst of chaos, find your calm. You've overcome challenges before, and you will overcome this too.",
+      tired: "Rest is not a luxury, it's a necessity. Give yourself permission to pause, recharge, and rise again.",
+      angry: "Your emotions are valid, but they don't define you. Channel this energy into positive change and growth.",
+      lonely: "You are never truly alone. Your worth isn't measured by others' presence, but by the light you carry within.",
+      hopeful: "Hope is the thing with feathers that perches in your soul. Keep nurturing that beautiful optimism within you.",
+      happy: "Your joy is contagious and your light brightens the world. Embrace this beautiful moment and let it fuel your dreams.",
+      default: "You are exactly where you need to be. Trust your journey, embrace your growth, and believe in your infinite potential."
+    };
+
+    // Find the best matching fallback quote
+    const moodLower = mood.toLowerCase();
+    for (const [key, quote] of Object.entries(fallbackQuotes)) {
+      if (moodLower.includes(key)) {
+        return quote;
+      }
+    }
+    return fallbackQuotes.default;
+  }
+}
+
+// Helper function to convert text to speech using ElevenLabs
+async function textToSpeech(text, mood) {
+  const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+  
+  if (!ELEVENLABS_API_KEY) {
+    throw new Error('ElevenLabs API key not configured. Please set ELEVENLABS_API_KEY environment variable.');
+  }
+
+  // Default voice ID (Rachel - a warm, friendly voice)
+  // You can change this to other voice IDs from ElevenLabs
+  const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM';
+
+  try {
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'audio/mpeg',
+        'Content-Type': 'application/json',
+        'xi-api-key': ELEVENLABS_API_KEY,
+      },
+      body: JSON.stringify({
+        text: text,
+        model_id: 'eleven_monolingual_v1',
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.5,
+          style: 0.3,
+          use_speaker_boost: true
+        }
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`ElevenLabs API error: ${response.status} ${errorText}`);
+    }
+
+    return await response.arrayBuffer();
+  } catch (error) {
+    console.error('ElevenLabs API error:', error);
+    throw error;
+  }
+}
+
+// Helper function to save audio file
+function saveAudioFile(audioBuffer, mood) {
+  const audioDir = path.join(__dirname, 'public', 'audio');
+  
+  // Create audio directory if it doesn't exist
+  if (!fs.existsSync(audioDir)) {
+    fs.mkdirSync(audioDir, { recursive: true });
+  }
+
+  // Generate filename based on mood and timestamp
+  const timestamp = Date.now();
+  const sanitizedMood = mood.toLowerCase().replace(/[^a-z0-9]/g, '-');
+  const filename = `motivation-${sanitizedMood}-${timestamp}.mp3`;
+  const filepath = path.join(audioDir, filename);
+
+  // Save the audio file
+  fs.writeFileSync(filepath, Buffer.from(audioBuffer));
+  
+  return `/audio/${filename}`;
 }
 
 // API endpoint to generate track
@@ -236,6 +388,85 @@ app.post('/api/generate-track', validateGenerateTrackInput, (req, res) => {
   }
 });
 
+// API endpoint to generate motivational narration
+app.post('/api/narrate', validateNarrateInput, async (req, res) => {
+  try {
+    const { mood } = req.body;
+
+    console.log(`🎙️ Generating motivational narration for mood: "${mood}"`);
+
+    // Check if API keys are configured
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(503).json({
+        error: 'OpenAI API key not configured',
+        message: 'Please set your OPENAI_API_KEY environment variable to use this feature.',
+        setupRequired: true
+      });
+    }
+
+    if (!process.env.ELEVENLABS_API_KEY) {
+      return res.status(503).json({
+        error: 'ElevenLabs API key not configured',
+        message: 'Please set your ELEVENLABS_API_KEY environment variable to use this feature.',
+        setupRequired: true
+      });
+    }
+
+    // Step 1: Generate motivational quote using OpenAI
+    console.log('📝 Generating motivational quote...');
+    const motivationalQuote = await generateMotivationalQuote(mood);
+    console.log(`✅ Generated quote: "${motivationalQuote}"`);
+
+    // Step 2: Convert text to speech using ElevenLabs
+    console.log('🔊 Converting to speech...');
+    const audioBuffer = await textToSpeech(motivationalQuote, mood);
+    console.log('✅ Audio generated successfully');
+
+    // Step 3: Save audio file
+    console.log('💾 Saving audio file...');
+    const audioUrl = saveAudioFile(audioBuffer, mood);
+    console.log(`✅ Audio saved: ${audioUrl}`);
+
+    // Return response
+    const response = {
+      audioUrl: audioUrl,
+      quote: motivationalQuote,
+      mood: mood,
+      duration: '0:15', // Estimated duration for motivational quotes
+      timestamp: new Date().toISOString()
+    };
+
+    console.log(`🎉 Narration complete for mood: "${mood}"`);
+    res.json(response);
+
+  } catch (error) {
+    console.error('❌ Error generating narration:', error);
+    
+    // Provide specific error messages for different failure types
+    if (error.message.includes('OpenAI API key')) {
+      return res.status(503).json({
+        error: 'OpenAI API configuration error',
+        message: 'Please check your OpenAI API key and try again.',
+        setupRequired: true
+      });
+    }
+    
+    if (error.message.includes('ElevenLabs API key')) {
+      return res.status(503).json({
+        error: 'ElevenLabs API configuration error',
+        message: 'Please check your ElevenLabs API key and try again.',
+        setupRequired: true
+      });
+    }
+
+    res.status(500).json({ 
+      error: 'Failed to generate motivational narration',
+      message: 'An error occurred while generating your motivational audio. Please try again.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // Health check endpoint with detailed information
 app.get('/api/health', (req, res) => {
   const healthData = {
@@ -245,7 +476,15 @@ app.get('/api/health', (req, res) => {
     tracksLoaded: tracksData.length,
     uptime: process.uptime(),
     memory: process.memoryUsage(),
-    version: '1.0.0'
+    version: '1.0.0',
+    features: {
+      trackGeneration: true,
+      narration: {
+        available: !!(process.env.OPENAI_API_KEY && process.env.ELEVENLABS_API_KEY),
+        openai: !!process.env.OPENAI_API_KEY,
+        elevenlabs: !!process.env.ELEVENLABS_API_KEY
+      }
+    }
   };
   
   console.log(`🏥 Health check requested`);
@@ -261,10 +500,14 @@ app.get('/api/status', (req, res) => {
     endpoints: [
       'GET /api/health',
       'GET /api/status',
-      'POST /api/generate-track'
+      'POST /api/generate-track',
+      'POST /api/narrate'
     ]
   });
 });
+
+// Serve static audio files
+app.use('/audio', express.static(path.join(__dirname, 'public', 'audio')));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -294,6 +537,23 @@ app.listen(PORT, () => {
   console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
   console.log(`📊 Status: http://localhost:${PORT}/api/status`);
   console.log(`🎯 Generate track: POST http://localhost:${PORT}/api/generate-track`);
+  console.log(`🎙️ Generate narration: POST http://localhost:${PORT}/api/narrate`);
+  
+  // Check API key configuration
+  const hasOpenAI = !!process.env.OPENAI_API_KEY;
+  const hasElevenLabs = !!process.env.ELEVENLABS_API_KEY;
+  
+  console.log('\n🔑 API Key Status:');
+  console.log(`   OpenAI: ${hasOpenAI ? '✅ Configured' : '❌ Missing'}`);
+  console.log(`   ElevenLabs: ${hasElevenLabs ? '✅ Configured' : '❌ Missing'}`);
+  
+  if (!hasOpenAI || !hasElevenLabs) {
+    console.log('\n⚠️  Narration feature requires API keys:');
+    if (!hasOpenAI) console.log('   Set OPENAI_API_KEY environment variable');
+    if (!hasElevenLabs) console.log('   Set ELEVENLABS_API_KEY environment variable');
+    console.log('   Optional: Set ELEVENLABS_VOICE_ID for custom voice');
+  }
+  
   console.log('================================\n');
 });
 

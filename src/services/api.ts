@@ -24,6 +24,18 @@ export interface GeneratedTrack {
   audioUrl: string;
 }
 
+export interface NarrateRequest {
+  mood: string;
+}
+
+export interface NarrationResponse {
+  audioUrl: string;
+  quote: string;
+  mood: string;
+  duration: string;
+  timestamp: string;
+}
+
 class ApiService {
   private async request<T>(
     endpoint: string,
@@ -68,7 +80,26 @@ class ApiService {
     });
   }
 
-  async healthCheck(): Promise<ApiResponse<{ status: string; tracksLoaded: number; timestamp: string }>> {
+  async generateNarration(request: NarrateRequest): Promise<ApiResponse<NarrationResponse>> {
+    return this.request<NarrationResponse>('/narrate', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  async healthCheck(): Promise<ApiResponse<{ 
+    status: string; 
+    tracksLoaded: number; 
+    timestamp: string;
+    features: {
+      trackGeneration: boolean;
+      narration: {
+        available: boolean;
+        openai: boolean;
+        elevenlabs: boolean;
+      };
+    };
+  }>> {
     return this.request('/health');
   }
 }
