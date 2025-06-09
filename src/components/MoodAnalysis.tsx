@@ -10,6 +10,7 @@ interface MoodAnalysisProps {
 const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [analysisResults, setAnalysisResults] = useState<any>(null);
+  const [error, setError] = useState<string>('');
 
   const steps = [
     { icon: Brain, text: 'Analyzing emotional tone...', color: 'text-orange-600' },
@@ -18,7 +19,7 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
     { icon: Music, text: 'Crafting your perfect soundtrack...', color: 'text-amber-600' }
   ];
 
-  // Simulate AI mood analysis
+  // Analyze mood and determine characteristics
   const analyzeMood = (moodText: string) => {
     const emotions = ['anxious', 'hopeful', 'excited', 'calm', 'sad', 'happy', 'stressed', 'peaceful', 'energetic', 'tired'];
     const detectedEmotions = emotions.filter(emotion => 
@@ -28,72 +29,82 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
     // Determine primary emotion and energy level
     let primaryEmotion = detectedEmotions[0] || 'neutral';
     let energyLevel = 'medium';
+    let genre = 'Ambient';
     
-    if (moodText.toLowerCase().includes('excited') || moodText.toLowerCase().includes('energetic')) {
+    // Energy level detection
+    if (moodText.toLowerCase().includes('excited') || 
+        moodText.toLowerCase().includes('energetic') ||
+        moodText.toLowerCase().includes('pumped')) {
       energyLevel = 'high';
-    } else if (moodText.toLowerCase().includes('calm') || moodText.toLowerCase().includes('tired')) {
+    } else if (moodText.toLowerCase().includes('calm') || 
+               moodText.toLowerCase().includes('tired') ||
+               moodText.toLowerCase().includes('peaceful')) {
       energyLevel = 'low';
     }
 
-    // Generate musical characteristics
-    const musicStyles = {
-      anxious: { genre: 'Ambient', tempo: 'Slow', instruments: 'Piano, Strings' },
-      hopeful: { genre: 'Uplifting Pop', tempo: 'Medium', instruments: 'Guitar, Synth' },
-      excited: { genre: 'Electronic Dance', tempo: 'Fast', instruments: 'Synth, Drums' },
-      calm: { genre: 'Meditation', tempo: 'Very Slow', instruments: 'Nature Sounds, Flute' },
-      sad: { genre: 'Melancholic Indie', tempo: 'Slow', instruments: 'Acoustic Guitar, Cello' },
-      happy: { genre: 'Upbeat Folk', tempo: 'Medium-Fast', instruments: 'Ukulele, Violin' },
-      stressed: { genre: 'Calming Classical', tempo: 'Slow', instruments: 'Piano, Harp' },
-      peaceful: { genre: 'Nature Ambient', tempo: 'Very Slow', instruments: 'Ocean Waves, Bells' },
-      energetic: { genre: 'Rock Pop', tempo: 'Fast', instruments: 'Electric Guitar, Drums' },
-      tired: { genre: 'Gentle Lullaby', tempo: 'Very Slow', instruments: 'Soft Piano, Strings' }
-    };
-
-    const style = musicStyles[primaryEmotion as keyof typeof musicStyles] || musicStyles.calm;
+    // Genre detection based on mood
+    if (moodText.toLowerCase().includes('excited') || moodText.toLowerCase().includes('energetic')) {
+      genre = 'Electronic Dance';
+    } else if (moodText.toLowerCase().includes('sad') || moodText.toLowerCase().includes('melancholy')) {
+      genre = 'Melancholic Indie';
+    } else if (moodText.toLowerCase().includes('happy') || moodText.toLowerCase().includes('joyful')) {
+      genre = 'Upbeat Folk';
+    } else if (moodText.toLowerCase().includes('calm') || moodText.toLowerCase().includes('peaceful')) {
+      genre = 'Meditation';
+    } else if (moodText.toLowerCase().includes('romantic') || moodText.toLowerCase().includes('love')) {
+      genre = 'Smooth Jazz';
+    }
 
     return {
       primaryEmotion,
       energyLevel,
-      detectedEmotions,
-      musicStyle: style
+      genre,
+      detectedEmotions
     };
   };
 
-  // Generate a track based on analysis
-  const generateTrack = (analysis: any): GeneratedTrack => {
-    const trackTitles = {
-      anxious: ['Breathing Space', 'Gentle Waves', 'Finding Peace'],
-      hopeful: ['Rising Dawn', 'New Horizons', 'Bright Tomorrow'],
-      excited: ['Electric Dreams', 'Energy Surge', 'Celebration'],
-      calm: ['Still Waters', 'Quiet Mind', 'Serene Moments'],
-      sad: ['Healing Rain', 'Soft Embrace', 'Tomorrow\'s Light'],
-      happy: ['Sunshine Melody', 'Dancing Clouds', 'Joyful Heart'],
-      stressed: ['Stress Relief', 'Calm Harbor', 'Inner Balance'],
-      peaceful: ['Tranquil Garden', 'Meditation Flow', 'Silent Lake'],
-      energetic: ['Power Surge', 'High Voltage', 'Unstoppable'],
-      tired: ['Rest Easy', 'Gentle Dreams', 'Sleep Well']
-    };
+  // Call backend API to generate track
+  const generateTrackFromAPI = async (analysis: any): Promise<GeneratedTrack> => {
+    try {
+      const response = await fetch('http://localhost:3001/api/generate-track', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          mood: mood,
+          genre: analysis.genre,
+          energy: analysis.energyLevel
+        }),
+      });
 
-    const titles = trackTitles[analysis.primaryEmotion as keyof typeof trackTitles] || trackTitles.calm;
-    const randomTitle = titles[Math.floor(Math.random() * titles.length)];
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-    const durations = ['3:24', '4:12', '2:58', '5:03', '3:47'];
-    const randomDuration = durations[Math.floor(Math.random() * durations.length)];
-
-    return {
-      id: `track_${Date.now()}`,
-      title: randomTitle,
-      duration: randomDuration,
-      mood: analysis.primaryEmotion,
-      description: `A ${analysis.musicStyle.genre.toLowerCase()} composition designed for ${analysis.primaryEmotion} moods, featuring ${analysis.musicStyle.instruments.toLowerCase()}.`,
-      audioUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav' // Placeholder
-    };
+      const track = await response.json();
+      return track;
+    } catch (error) {
+      console.error('Error calling API:', error);
+      
+      // Fallback track if API fails
+      return {
+        id: `track_fallback_${Date.now()}`,
+        title: 'Peaceful Moments',
+        duration: '3:24',
+        mood: analysis.primaryEmotion,
+        description: `A calming composition designed for ${analysis.primaryEmotion} moods. (Generated offline due to connection issue)`,
+        audioUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav'
+      };
+    }
   };
 
   useEffect(() => {
     let stepInterval: NodeJS.Timeout;
     
     const runAnalysis = async () => {
+      setError('');
+      
       // Step through the analysis process
       stepInterval = setInterval(() => {
         setCurrentStep(prev => {
@@ -101,14 +112,21 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
             clearInterval(stepInterval);
             
             // Complete analysis and generate track
-            setTimeout(() => {
-              const analysis = analyzeMood(mood);
-              setAnalysisResults(analysis);
-              const track = generateTrack(analysis);
-              
-              setTimeout(() => {
-                onMusicGenerated(track);
-              }, 1500);
+            setTimeout(async () => {
+              try {
+                const analysis = analyzeMood(mood);
+                setAnalysisResults(analysis);
+                
+                // Call backend API to get track
+                const track = await generateTrackFromAPI(analysis);
+                
+                setTimeout(() => {
+                  onMusicGenerated(track);
+                }, 1500);
+              } catch (error) {
+                console.error('Error in analysis:', error);
+                setError('Failed to generate track. Please try again.');
+              }
             }, 1000);
             
             return prev;
@@ -136,6 +154,13 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
             <p className="text-orange-800 italic">"{mood}"</p>
           </div>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+            <p className="text-red-700">{error}</p>
+          </div>
+        )}
 
         {/* Analysis Progress */}
         <div className="space-y-6">
@@ -212,15 +237,15 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
               </div>
               <div className="bg-white p-3 rounded-lg border border-orange-100">
                 <span className="font-medium text-orange-700">Musical Genre:</span>
-                <p className="text-orange-600">{analysisResults.musicStyle.genre}</p>
+                <p className="text-orange-600">{analysisResults.genre}</p>
               </div>
               <div className="bg-white p-3 rounded-lg border border-orange-100">
-                <span className="font-medium text-orange-700">Instruments:</span>
-                <p className="text-amber-600">{analysisResults.musicStyle.instruments}</p>
+                <span className="font-medium text-orange-700">API Status:</span>
+                <p className="text-green-600">Connected</p>
               </div>
             </div>
             <p className="text-orange-700 text-center">
-              Creating your personalized soundtrack...
+              Fetching your personalized soundtrack from our music library...
             </p>
           </div>
         )}

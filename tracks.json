@@ -1,0 +1,202 @@
+[
+  {
+    "id": "track_001",
+    "title": "Breathing Space",
+    "duration": "4:12",
+    "mood": "anxious",
+    "genre": "Ambient",
+    "energy": "low",
+    "description": "A gentle ambient track with soft piano and nature sounds, designed to ease anxiety and promote calm breathing.",
+    "audioUrl": "/tracks/breathing-space.mp3"
+  },
+  {
+    "id": "track_002",
+    "title": "Rising Dawn",
+    "duration": "3:45",
+    "mood": "hopeful",
+    "genre": "Uplifting Pop",
+    "energy": "medium",
+    "description": "An inspiring track with warm guitar melodies and uplifting harmonies that evoke feelings of hope and new beginnings.",
+    "audioUrl": "/tracks/rising-dawn.mp3"
+  },
+  {
+    "id": "track_003",
+    "title": "Electric Dreams",
+    "duration": "3:28",
+    "mood": "excited",
+    "genre": "Electronic Dance",
+    "energy": "high",
+    "description": "An energetic electronic track with pulsing synths and driving beats that captures the excitement of possibility.",
+    "audioUrl": "/tracks/electric-dreams.mp3"
+  },
+  {
+    "id": "track_004",
+    "title": "Still Waters",
+    "duration": "5:03",
+    "mood": "calm",
+    "genre": "Meditation",
+    "energy": "very low",
+    "description": "A deeply peaceful composition featuring soft flute melodies over gentle water sounds and ambient textures.",
+    "audioUrl": "/tracks/still-waters.mp3"
+  },
+  {
+    "id": "track_005",
+    "title": "Healing Rain",
+    "duration": "4:36",
+    "mood": "sad",
+    "genre": "Melancholic Indie",
+    "energy": "low",
+    "description": "A tender acoustic guitar piece with subtle strings that provides comfort during difficult emotional moments.",
+    "audioUrl": "/tracks/healing-rain.mp3"
+  },
+  {
+    "id": "track_006",
+    "title": "Sunshine Melody",
+    "duration": "2:58",
+    "mood": "happy",
+    "genre": "Upbeat Folk",
+    "energy": "medium",
+    "description": "A cheerful folk tune with ukulele and light percussion that brings instant joy and warmth to your day.",
+    "audioUrl": "/tracks/sunshine-melody.mp3"
+  },
+  {
+    "id": "track_007",
+    "title": "Inner Balance",
+    "duration": "6:15",
+    "mood": "stressed",
+    "genre": "Calming Classical",
+    "energy": "low",
+    "description": "A soothing classical piece with piano and harp that helps restore mental equilibrium and reduce stress.",
+    "audioUrl": "/tracks/inner-balance.mp3"
+  },
+  {
+    "id": "track_008",
+    "title": "Tranquil Garden",
+    "duration": "4:42",
+    "mood": "peaceful",
+    "genre": "Nature Ambient",
+    "energy": "very low",
+    "description": "An immersive soundscape combining gentle bells with natural garden sounds for deep relaxation.",
+    "audioUrl": "/tracks/tranquil-garden.mp3"
+  },
+  {
+    "id": "track_009",
+    "title": "Power Surge",
+    "duration": "3:33",
+    "mood": "energetic",
+    "genre": "Rock Pop",
+    "energy": "high",
+    "description": "A driving rock-pop anthem with electric guitars and powerful drums that amplifies your natural energy.",
+    "audioUrl": "/tracks/power-surge.mp3"
+  },
+  {
+    "id": "track_010",
+    "title": "Gentle Dreams",
+    "duration": "5:27",
+    "mood": "tired",
+    "genre": "Gentle Lullaby",
+    "energy": "very low",
+    "description": "A soft, dreamy composition with delicate piano and strings designed to ease you into restful sleep.",
+    "audioUrl": "/tracks/gentle-dreams.mp3"
+  },
+  {
+    "id": "track_011",
+    "title": "Focused Flow",
+    "duration": "4:18",
+    "mood": "focused",
+    "genre": "Minimal Techno",
+    "energy": "medium",
+    "description": "A steady, rhythmic track with subtle electronic elements that enhances concentration and productivity.",
+    "audioUrl": "/tracks/focused-flow.mp3"
+  },
+  {
+    "id": "track_012",
+    "title": "Nostalgic Waves",
+    "duration": "4:05",
+    "mood": "nostalgic",
+    "genre": "Ambient Pop",
+    "energy": "medium",
+    "description": "A wistful melody with vintage synths and gentle reverb that evokes cherished memories and reflection.",
+    "audioUrl": "/tracks/nostalgic-waves.mp3"
+  },
+  {
+    "id": "track_013",
+    "title": "Midnight Embrace",
+    "duration": "3:52",
+    "mood": "romantic",
+    "genre": "Smooth Jazz",
+    "energy": "low",
+    "description": "A sultry jazz piece with saxophone and soft piano that creates an intimate, romantic atmosphere.",
+    "audioUrl": "/tracks/midnight-embrace.mp3"
+  },
+  {
+    "id": "track_014",
+    "title": "Mountain Peak",
+    "duration": "4:29",
+    "mood": "determined",
+    "genre": "Cinematic",
+    "energy": "high",
+    "description": "An epic orchestral piece with building intensity that inspires determination and achievement.",
+    "audioUrl": "/tracks/mountain-peak.mp3"
+  },
+  {
+    "id": "track_015",
+    "title": "Cozy Fireplace",
+    "duration": "6:33",
+    "mood": "content",
+    "genre": "Acoustic Folk",
+    "energy": "low",
+    "description": "A warm acoustic guitar piece with subtle crackling fire sounds that evokes comfort and contentment.",
+    "audioUrl": "/tracks/cozy-fireplace.mp3"
+  },
+  {
+    "id": "track_016",
+    "title": "Ocean Breeze",
+    "duration": "5:18",
+    "mood": "refreshed",
+    "genre": "Tropical Ambient",
+    "energy": "medium",
+    "description": "A refreshing blend of steel drums and ocean sounds that brings the feeling of a tropical paradise.",
+    "audioUrl": "/tracks/ocean-breeze.mp3"
+  },
+  {
+    "id": "track_017",
+    "title": "Stormy Thoughts",
+    "duration": "4:44",
+    "mood": "conflicted",
+    "genre": "Dark Ambient",
+    "energy": "medium",
+    "description": "A complex soundscape with layered textures that reflects internal conflict and emotional turbulence.",
+    "audioUrl": "/tracks/stormy-thoughts.mp3"
+  },
+  {
+    "id": "track_018",
+    "title": "Victory Dance",
+    "duration": "3:15",
+    "mood": "triumphant",
+    "genre": "Upbeat Electronic",
+    "energy": "very high",
+    "description": "A celebratory electronic track with soaring melodies and energetic beats perfect for moments of triumph.",
+    "audioUrl": "/tracks/victory-dance.mp3"
+  },
+  {
+    "id": "track_019",
+    "title": "Quiet Reflection",
+    "duration": "5:45",
+    "mood": "contemplative",
+    "genre": "Neo-Classical",
+    "energy": "low",
+    "description": "A thoughtful piano composition with subtle strings that encourages deep reflection and introspection.",
+    "audioUrl": "/tracks/quiet-reflection.mp3"
+  },
+  {
+    "id": "track_020",
+    "title": "Spring Awakening",
+    "duration": "3:38",
+    "mood": "optimistic",
+    "genre": "Indie Pop",
+    "energy": "medium",
+    "description": "A bright, optimistic track with jangly guitars and uplifting melodies that captures the spirit of renewal.",
+    "audioUrl": "/tracks/spring-awakening.mp3"
+  }
+]
