@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, RotateCcw, Share2, Download, Heart, Volume2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, Share2, Download, Heart, Volume2, AlertCircle } from 'lucide-react';
 import { GeneratedTrack } from '../types';
 
 interface MusicPlayerProps {
@@ -14,54 +14,148 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [isLiked, setIsLiked] = useState(false);
+  const [audioError, setAudioError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // Since we don't have actual audio files, we'll simulate playback
-  const totalDurationSeconds = 204; // 3:24 in seconds
-  const intervalRef = useRef<NodeJS.Timeout>();
-
+  // Initialize audio element
   useEffect(() => {
-    setDuration(totalDurationSeconds);
-  }, []);
+    const audio = audioRef.current;
+    if (!audio) return;
 
-  const togglePlayPause = () => {
-    if (isPlaying) {
+    // Set up audio event listeners
+    const handleLoadedMetadata = () => {
+      setDuration(audio.duration);
+      setIsLoading(false);
+      setAudioError(false);
+    };
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+    };
+
+    const handleEnded = () => {
       setIsPlaying(false);
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+      setCurrentTime(0);
+    };
+
+    const handleError = () => {
+      setAudioError(true);
+      setIsLoading(false);
+      setIsPlaying(false);
+      console.warn('Audio file not found, using demo mode');
+    };
+
+    const handleCanPlay = () => {
+      setIsLoading(false);
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+    audio.addEventListener('canplay', handleCanPlay);
+
+    // Set initial volume
+    audio.volume = volume;
+
+    // Try to load the audio
+    audio.load();
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
+      audio.removeEventListener('canplay', handleCanPlay);
+    };
+  }, [track.audioUrl]);
+
+  // Update volume when volume state changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+    }
+  }, [volume]);
+
+  const togglePlayPause = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (audioError) {
+      // If there's an audio error, simulate playback
+      simulatePlayback();
+      return;
+    }
+
+    try {
+      if (isPlaying) {
+        audio.pause();
+        setIsPlaying(false);
+      } else {
+        await audio.play();
+        setIsPlaying(true);
       }
-    } else {
-      setIsPlaying(true);
-      intervalRef.current = setInterval(() => {
-        setCurrentTime(prev => {
-          if (prev >= totalDurationSeconds) {
-            setIsPlaying(false);
-            clearInterval(intervalRef.current!);
-            return totalDurationSeconds;
-          }
-          return prev + 1;
-        });
-      }, 1000);
+    } catch (error) {
+      console.warn('Audio playback failed, falling back to simulation:', error);
+      setAudioError(true);
+      simulatePlayback();
     }
   };
 
-  const resetTrack = () => {
-    setCurrentTime(0);
-    setIsPlaying(false);
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
+  // Fallback simulation for when audio files don't exist
+  const simulatePlayback = () => {
+    if (isPlaying) {
+      setIsPlaying(false);
+      return;
     }
+
+    setIsPlaying(true);
+    const totalDurationSeconds = 204; // 3:24 in seconds
+    setDuration(totalDurationSeconds);
+
+    const interval = setInterval(() => {
+      setCurrentTime(prev => {
+        if (prev >= totalDurationSeconds) {
+          setIsPlaying(false);
+          clearInterval(interval);
+          return totalDurationSeconds;
+        }
+        return prev + 1;
+      });
+    }, 1000);
+  };
+
+  const resetTrack = () => {
+    const audio = audioRef.current;
+    if (audio && !audioError) {
+      audio.currentTime = 0;
+      setCurrentTime(0);
+    } else {
+      setCurrentTime(0);
+    }
+    setIsPlaying(false);
   };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = parseInt(e.target.value);
+    const newTime = parseFloat(e.target.value);
+    const audio = audioRef.current;
+    
+    if (audio && !audioError) {
+      audio.currentTime = newTime;
+    }
     setCurrentTime(newTime);
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
   };
 
   const handleShare = async () => {
@@ -82,17 +176,20 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
     }
   };
 
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, []);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-900 via-amber-900 to-orange-800 flex items-center justify-center px-4">
       <div className="max-w-2xl mx-auto">
+        {/* Hidden audio element */}
+        <audio
+          ref={audioRef}
+          preload="metadata"
+          crossOrigin="anonymous"
+        >
+          <source src={track.audioUrl} type="audio/mpeg" />
+          <source src={track.audioUrl.replace('.mp3', '.ogg')} type="audio/ogg" />
+          Your browser does not support the audio element.
+        </audio>
+
         {/* Track Artwork */}
         <div className="relative mb-8">
           <div className="w-80 h-80 mx-auto bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 rounded-3xl shadow-2xl flex items-center justify-center relative overflow-hidden">
@@ -122,9 +219,14 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
             {!isPlaying && (
               <button
                 onClick={togglePlayPause}
-                className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-all duration-200"
+                disabled={isLoading}
+                className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-all duration-200 disabled:opacity-50"
               >
-                <Play className="w-8 h-8 text-white ml-1" />
+                {isLoading ? (
+                  <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Play className="w-8 h-8 text-white ml-1" />
+                )}
               </button>
             )}
           </div>
@@ -137,6 +239,14 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
           <p className="text-orange-100 max-w-lg mx-auto leading-relaxed">
             {track.description}
           </p>
+          
+          {/* Audio status indicator */}
+          {audioError && (
+            <div className="flex items-center justify-center space-x-2 text-orange-200 text-sm">
+              <AlertCircle className="w-4 h-4" />
+              <span>Demo mode - Audio file not available</span>
+            </div>
+          )}
         </div>
 
         {/* Controls */}
@@ -146,14 +256,14 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
             <input
               type="range"
               min="0"
-              max={duration}
+              max={duration || 204}
               value={currentTime}
               onChange={handleSeek}
               className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
             />
             <div className="flex justify-between text-sm text-orange-200">
               <span>{formatTime(currentTime)}</span>
-              <span>{track.duration}</span>
+              <span>{duration ? formatTime(duration) : track.duration}</span>
             </div>
           </div>
 
@@ -168,9 +278,12 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
             
             <button
               onClick={togglePlayPause}
-              className="p-4 bg-white text-orange-900 rounded-full hover:scale-105 transition-all duration-200 shadow-lg"
+              disabled={isLoading}
+              className="p-4 bg-white text-orange-900 rounded-full hover:scale-105 transition-all duration-200 shadow-lg disabled:opacity-50"
             >
-              {isPlaying ? (
+              {isLoading ? (
+                <div className="w-8 h-8 border-2 border-orange-900 border-t-transparent rounded-full animate-spin" />
+              ) : isPlaying ? (
                 <Pause className="w-8 h-8" />
               ) : (
                 <Play className="w-8 h-8 ml-1" />
@@ -198,9 +311,10 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
               max="1"
               step="0.1"
               value={volume}
-              onChange={(e) => setVolume(parseFloat(e.target.value))}
+              onChange={handleVolumeChange}
               className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
             />
+            <span className="text-white/70 text-sm w-8">{Math.round(volume * 100)}</span>
           </div>
 
           {/* Action Buttons */}
