@@ -164,9 +164,9 @@ const Landing: React.FC<LandingProps> = ({
       </section>
 
       {/* Built on Bolt Badge - Footer */}
-      <footer className="bg-gradient-to-r from-orange-900 to-amber-900 py-12">
+      <footer className="bg-gradient-to-r from-orange-900 to-amber-900 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center space-y-6">
+          <div className="text-center space-y-4">
             {/* Built on Bolt Badge */}
             <div className="flex justify-center">
               <a
