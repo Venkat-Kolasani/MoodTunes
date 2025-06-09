@@ -183,7 +183,21 @@ app.post('/api/generate-track', validateGenerateTrackInput, (req, res) => {
       if (fallbackTracks.length > 0) {
         const fallbackTrack = fallbackTracks[Math.floor(Math.random() * fallbackTracks.length)];
         console.log(`🔄 Using fallback track: "${fallbackTrack.title}"`);
-        return res.json(fallbackTrack);
+        
+        // Format response to match frontend expectations
+        const response = {
+          id: fallbackTrack.id,
+          title: fallbackTrack.title,
+          duration: fallbackTrack.duration,
+          mood: fallbackTrack.mood,
+          genre: fallbackTrack.genre,
+          energy: fallbackTrack.energy,
+          description: fallbackTrack.description,
+          audioUrl: fallbackTrack.audioUrl,
+          url: fallbackTrack.audioUrl // Add url field for compatibility
+        };
+        
+        return res.json(response);
       }
       
       // Ultimate fallback
@@ -195,18 +209,23 @@ app.post('/api/generate-track', validateGenerateTrackInput, (req, res) => {
         genre: 'Ambient',
         energy: 'low',
         description: 'A gentle, calming track to help you find peace.',
-        audioUrl: '/tracks/peaceful-moments.mp3'
+        audioUrl: '/tracks/peaceful-moments.mp3',
+        url: '/tracks/peaceful-moments.mp3'
       };
       
       console.log(`🆘 Using ultimate fallback track`);
       return res.json(ultimateFallback);
     }
 
-    // Remove the score before sending response
-    const { score, ...trackResponse } = selectedTrack;
+    // Remove the score and format response to match frontend expectations
+    const { score, ...trackData } = selectedTrack;
+    const response = {
+      ...trackData,
+      url: trackData.audioUrl // Add url field for compatibility
+    };
     
-    console.log(`✅ Selected track: "${trackResponse.title}" (score: ${score.toFixed(2)})`);
-    res.json(trackResponse);
+    console.log(`✅ Selected track: "${response.title}" (score: ${score.toFixed(2)})`);
+    res.json(response);
 
   } catch (error) {
     console.error('❌ Error generating track:', error);
