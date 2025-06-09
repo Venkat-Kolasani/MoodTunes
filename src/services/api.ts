@@ -1,5 +1,5 @@
 // API service configuration and methods
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE_URL = '/api';
 
 export interface ApiResponse<T> {
   data?: T;
@@ -62,14 +62,14 @@ class ApiService {
   }
 
   async generateTrack(request: GenerateTrackRequest): Promise<ApiResponse<GeneratedTrack>> {
-    return this.request<GeneratedTrack>('/api/generate-track', {
+    return this.request<GeneratedTrack>('/generate-track', {
       method: 'POST',
       body: JSON.stringify(request),
     });
   }
 
   async healthCheck(): Promise<ApiResponse<{ status: string; tracksLoaded: number; timestamp: string }>> {
-    return this.request('/api/health');
+    return this.request('/health');
   }
 }
 
