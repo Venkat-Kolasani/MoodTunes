@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Brain, Sparkles, Music, Heart, AlertCircle, RefreshCw, Mic } from 'lucide-react';
+import { Brain, Sparkles, Music, Heart, AlertCircle, RefreshCw, Mic, CheckCircle } from 'lucide-react';
 import { GeneratedTrack } from '../types';
 import { apiService } from '../services/api';
 import { useApi } from '../hooks/useApi';
@@ -16,6 +16,7 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
   const [narrationAudio, setNarrationAudio] = useState<string | null>(null);
   const [narrationQuote, setNarrationQuote] = useState<string | null>(null);
   const [isPlayingNarration, setIsPlayingNarration] = useState(false);
+  const [trackGenerated, setTrackGenerated] = useState(false);
   
   const { data: track, loading, error, execute } = useApi<GeneratedTrack>();
   const { 
@@ -86,6 +87,7 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
     );
 
     if (response.data) {
+      setTrackGenerated(true);
       setTimeout(() => {
         setShowNarrationOption(true);
         onMusicGenerated(response.data!);
@@ -118,6 +120,9 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
 
   const retryGeneration = () => {
     if (analysisResults) {
+      setCurrentStep(0);
+      setTrackGenerated(false);
+      setShowNarrationOption(false);
       generateTrack(analysisResults);
     }
   };
@@ -189,7 +194,7 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
           {steps.map((step, index) => {
             const Icon = step.icon;
             const isActive = index <= currentStep;
-            const isCompleted = index < currentStep;
+            const isCompleted = index < currentStep || (index === currentStep && trackGenerated);
             
             return (
               <div
@@ -206,13 +211,13 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
                         ? 'bg-gradient-to-r from-orange-100 to-amber-100' 
                         : 'bg-orange-200'
                   }`}>
-                    <Icon className={`w-6 h-6 ${
-                      isCompleted 
-                        ? 'text-green-600' 
-                        : isActive 
-                          ? step.color 
-                          : 'text-orange-400'
-                    }`} />
+                    {isCompleted ? (
+                      <CheckCircle className="w-6 h-6 text-green-600" />
+                    ) : (
+                      <Icon className={`w-6 h-6 ${
+                        isActive ? step.color : 'text-orange-400'
+                      }`} />
+                    )}
                   </div>
                   
                   {isActive && !isCompleted && (
@@ -228,17 +233,9 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
                         ? 'text-orange-900' 
                         : 'text-orange-400'
                   }`}>
-                    {step.text}
+                    {isCompleted ? step.text.replace('...', ' ✓') : step.text}
                   </p>
                 </div>
-                
-                {isCompleted && (
-                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                )}
               </div>
             );
           })}
@@ -249,7 +246,7 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
           <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
             <div className="flex items-center justify-center space-x-2 text-blue-700">
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-700"></div>
-              <p>Generating your track...</p>
+              <p>Generating your personalized track...</p>
             </div>
           </div>
         )}
@@ -272,13 +269,15 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
                 <p className="text-orange-600">{analysisResults.genre}</p>
               </div>
               <div className="bg-white p-3 rounded-lg border border-orange-100">
-                <span className="font-medium text-orange-700">API Status:</span>
-                <p className="text-green-600">Connected</p>
+                <span className="font-medium text-orange-700">Status:</span>
+                <p className="text-green-600">{trackGenerated ? 'Track Generated' : 'Processing...'}</p>
               </div>
             </div>
-            <p className="text-orange-700 text-center">
-              Fetching your personalized soundtrack from our music library...
-            </p>
+            {trackGenerated && (
+              <p className="text-green-700 text-center font-medium">
+                🎉 Your personalized soundtrack is ready!
+              </p>
+            )}
           </div>
         )}
 

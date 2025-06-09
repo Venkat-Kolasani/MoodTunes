@@ -1,5 +1,5 @@
 // API service configuration and methods
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export interface ApiResponse<T> {
   data?: T;
@@ -43,6 +43,8 @@ class ApiService {
   ): Promise<ApiResponse<T>> {
     try {
       const url = `${API_BASE_URL}${endpoint}`;
+      console.log(`Making API request to: ${url}`);
+      
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
@@ -51,15 +53,27 @@ class ApiService {
         ...options,
       });
 
-      const data = await response.json();
+      console.log(`API response status: ${response.status}`);
+
+      let data;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.warn('Non-JSON response received:', text);
+        data = { error: 'Invalid response format' };
+      }
 
       if (!response.ok) {
+        console.error('API error response:', data);
         return {
-          error: data.error || `HTTP ${response.status}: ${response.statusText}`,
+          error: data.error || data.message || `HTTP ${response.status}: ${response.statusText}`,
           status: response.status,
         };
       }
 
+      console.log('API request successful:', data);
       return {
         data,
         status: response.status,
@@ -74,6 +88,7 @@ class ApiService {
   }
 
   async generateTrack(request: GenerateTrackRequest): Promise<ApiResponse<GeneratedTrack>> {
+    console.log('Generating track with request:', request);
     return this.request<GeneratedTrack>('/generate-track', {
       method: 'POST',
       body: JSON.stringify(request),
@@ -81,6 +96,7 @@ class ApiService {
   }
 
   async generateNarration(request: NarrateRequest): Promise<ApiResponse<NarrationResponse>> {
+    console.log('Generating narration with request:', request);
     return this.request<NarrationResponse>('/narrate', {
       method: 'POST',
       body: JSON.stringify(request),
@@ -93,6 +109,7 @@ class ApiService {
     timestamp: string;
     features: {
       trackGeneration: boolean;
+      trackEnhancement: boolean;
       narration: {
         available: boolean;
         openai: boolean;
@@ -100,6 +117,7 @@ class ApiService {
       };
     };
   }>> {
+    console.log('Performing health check...');
     return this.request('/health');
   }
 }

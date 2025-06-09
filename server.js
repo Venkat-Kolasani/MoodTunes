@@ -150,6 +150,88 @@ function calculateEnergySimilarity(trackEnergy, userEnergy) {
   return Math.max(0, 1 - (difference / 4));
 }
 
+// Helper function to generate enhanced track details using OpenAI
+async function generateEnhancedTrackDetails(mood, genre, energy, baseTrack) {
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+  
+  if (!OPENAI_API_KEY) {
+    // Return enhanced details without OpenAI
+    return {
+      ...baseTrack,
+      title: `${baseTrack.title} (Enhanced)`,
+      description: `A personalized ${genre || baseTrack.genre} track crafted for your "${mood}" mood with ${energy || baseTrack.energy} energy.`
+    };
+  }
+
+  const prompt = `Create an enhanced music track based on:
+- Mood: ${mood}
+- Genre: ${genre || baseTrack.genre}
+- Energy: ${energy || baseTrack.energy}
+- Base track: ${baseTrack.title}
+
+Generate a JSON response with:
+- title: A creative, mood-appropriate song title
+- description: A compelling 1-2 sentence description of how this track matches the mood
+- enhancedMood: A more nuanced description of the emotional tone
+
+Keep it concise and engaging. Respond only with valid JSON.`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a music curator who creates personalized track descriptions. Always respond with valid JSON only.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 200,
+        temperature: 0.8,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content?.trim();
+    
+    if (content) {
+      try {
+        const enhanced = JSON.parse(content);
+        return {
+          ...baseTrack,
+          title: enhanced.title || baseTrack.title,
+          description: enhanced.description || baseTrack.description,
+          mood: enhanced.enhancedMood || baseTrack.mood
+        };
+      } catch (parseError) {
+        console.warn('Failed to parse OpenAI response, using base track');
+      }
+    }
+  } catch (error) {
+    console.error('OpenAI enhancement error:', error);
+  }
+
+  // Fallback enhancement
+  return {
+    ...baseTrack,
+    title: `${baseTrack.title} (Personalized)`,
+    description: `A ${genre || baseTrack.genre} track perfectly tuned for your "${mood}" mood.`
+  };
+}
+
 // Helper function to generate motivational quote using OpenAI
 async function generateMotivationalQuote(mood) {
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -226,7 +308,6 @@ async function textToSpeech(text, mood) {
   }
 
   // Default voice ID (Rachel - a warm, friendly voice)
-  // You can change this to other voice IDs from ElevenLabs
   const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM';
 
   try {
@@ -283,7 +364,7 @@ function saveAudioFile(audioBuffer, mood) {
 }
 
 // API endpoint to generate track
-app.post('/api/generate-track', validateGenerateTrackInput, (req, res) => {
+app.post('/api/generate-track', validateGenerateTrackInput, async (req, res) => {
   try {
     const { mood, genre, energy } = req.body;
 
@@ -336,17 +417,10 @@ app.post('/api/generate-track', validateGenerateTrackInput, (req, res) => {
         const fallbackTrack = fallbackTracks[Math.floor(Math.random() * fallbackTracks.length)];
         console.log(`🔄 Using fallback track: "${fallbackTrack.title}"`);
         
-        // Format response to match frontend expectations
+        const enhancedTrack = await generateEnhancedTrackDetails(mood, genre, energy, fallbackTrack);
         const response = {
-          id: fallbackTrack.id,
-          title: fallbackTrack.title,
-          duration: fallbackTrack.duration,
-          mood: fallbackTrack.mood,
-          genre: fallbackTrack.genre,
-          energy: fallbackTrack.energy,
-          description: fallbackTrack.description,
-          audioUrl: fallbackTrack.audioUrl,
-          url: fallbackTrack.audioUrl // Add url field for compatibility
+          ...enhancedTrack,
+          url: enhancedTrack.audioUrl
         };
         
         return res.json(response);
@@ -369,11 +443,14 @@ app.post('/api/generate-track', validateGenerateTrackInput, (req, res) => {
       return res.json(ultimateFallback);
     }
 
-    // Remove the score and format response to match frontend expectations
-    const { score, ...trackData } = selectedTrack;
+    // Enhance the track with OpenAI if available
+    const enhancedTrack = await generateEnhancedTrackDetails(mood, genre, energy, selectedTrack);
+    
+    // Remove the score and format response
+    const { score, ...trackData } = enhancedTrack;
     const response = {
       ...trackData,
-      url: trackData.audioUrl // Add url field for compatibility
+      url: trackData.audioUrl
     };
     
     console.log(`✅ Selected track: "${response.title}" (score: ${score.toFixed(2)})`);
@@ -479,6 +556,7 @@ app.get('/api/health', (req, res) => {
     version: '1.0.0',
     features: {
       trackGeneration: true,
+      trackEnhancement: !!process.env.OPENAI_API_KEY,
       narration: {
         available: !!(process.env.OPENAI_API_KEY && process.env.ELEVENLABS_API_KEY),
         openai: !!process.env.OPENAI_API_KEY,
@@ -548,9 +626,9 @@ app.listen(PORT, () => {
   console.log(`   ElevenLabs: ${hasElevenLabs ? '✅ Configured' : '❌ Missing'}`);
   
   if (!hasOpenAI || !hasElevenLabs) {
-    console.log('\n⚠️  Narration feature requires API keys:');
-    if (!hasOpenAI) console.log('   Set OPENAI_API_KEY environment variable');
-    if (!hasElevenLabs) console.log('   Set ELEVENLABS_API_KEY environment variable');
+    console.log('\n⚠️  Some features require API keys:');
+    if (!hasOpenAI) console.log('   Set OPENAI_API_KEY for enhanced track details and narration');
+    if (!hasElevenLabs) console.log('   Set ELEVENLABS_API_KEY for voice narration');
     console.log('   Optional: Set ELEVENLABS_VOICE_ID for custom voice');
   }
   
