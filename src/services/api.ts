@@ -1,5 +1,5 @@
 // API service configuration and methods
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export interface ApiResponse<T> {
   data?: T;
@@ -42,7 +42,7 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     try {
-      const url = `${API_BASE_URL}${endpoint}`;
+      const url = `${API_BASE_URL}/api${endpoint}`;
       console.log(`Making API request to: ${url}`);
       
       const response = await fetch(url, {
