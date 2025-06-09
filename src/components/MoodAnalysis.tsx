@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Brain, Sparkles, Music, Heart } from 'lucide-react';
+import { Brain, Sparkles, Music, Heart, AlertCircle, RefreshCw } from 'lucide-react';
 import { GeneratedTrack } from '../types';
+import { apiService } from '../services/api';
+import { useApi } from '../hooks/useApi';
 
 interface MoodAnalysisProps {
   mood: string;
@@ -10,7 +12,7 @@ interface MoodAnalysisProps {
 const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [analysisResults, setAnalysisResults] = useState<any>(null);
-  const [error, setError] = useState<string>('');
+  const { data: track, loading, error, execute } = useApi<GeneratedTrack>();
 
   const steps = [
     { icon: Brain, text: 'Analyzing emotional tone...', color: 'text-orange-600' },
@@ -63,39 +65,25 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
     };
   };
 
-  // Call backend API to generate track
-  const generateTrackFromAPI = async (analysis: any): Promise<GeneratedTrack> => {
-    try {
-      const response = await fetch('http://localhost:3001/api/generate-track', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          mood: mood,
-          genre: analysis.genre,
-          energy: analysis.energyLevel
-        }),
-      });
+  const generateTrack = async (analysis: any) => {
+    const response = await execute(() => 
+      apiService.generateTrack({
+        mood: mood,
+        genre: analysis.genre,
+        energy: analysis.energyLevel
+      })
+    );
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+    if (response.data) {
+      setTimeout(() => {
+        onMusicGenerated(response.data!);
+      }, 1500);
+    }
+  };
 
-      const track = await response.json();
-      return track;
-    } catch (error) {
-      console.error('Error calling API:', error);
-      
-      // Fallback track if API fails
-      return {
-        id: `track_fallback_${Date.now()}`,
-        title: 'Peaceful Moments',
-        duration: '3:24',
-        mood: analysis.primaryEmotion,
-        description: `A calming composition designed for ${analysis.primaryEmotion} moods. (Generated offline due to connection issue)`,
-        audioUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav'
-      };
+  const retryGeneration = () => {
+    if (analysisResults) {
+      generateTrack(analysisResults);
     }
   };
 
@@ -103,8 +91,6 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
     let stepInterval: NodeJS.Timeout;
     
     const runAnalysis = async () => {
-      setError('');
-      
       // Step through the analysis process
       stepInterval = setInterval(() => {
         setCurrentStep(prev => {
@@ -113,20 +99,9 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
             
             // Complete analysis and generate track
             setTimeout(async () => {
-              try {
-                const analysis = analyzeMood(mood);
-                setAnalysisResults(analysis);
-                
-                // Call backend API to get track
-                const track = await generateTrackFromAPI(analysis);
-                
-                setTimeout(() => {
-                  onMusicGenerated(track);
-                }, 1500);
-              } catch (error) {
-                console.error('Error in analysis:', error);
-                setError('Failed to generate track. Please try again.');
-              }
+              const analysis = analyzeMood(mood);
+              setAnalysisResults(analysis);
+              await generateTrack(analysis);
             }, 1000);
             
             return prev;
@@ -141,7 +116,7 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
     return () => {
       if (stepInterval) clearInterval(stepInterval);
     };
-  }, [mood, onMusicGenerated]);
+  }, [mood]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
@@ -155,10 +130,22 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
           </div>
         </div>
 
-        {/* Error Message */}
+        {/* Error Message with Retry */}
         {error && (
-          <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
-            <p className="text-red-700">{error}</p>
+          <div className="bg-red-50 border border-red-200 p-4 rounded-lg space-y-3">
+            <div className="flex items-center justify-center space-x-2 text-red-700">
+              <AlertCircle className="w-5 h-5" />
+              <p className="font-medium">Generation Failed</p>
+            </div>
+            <p className="text-red-600 text-sm">{error}</p>
+            <button
+              onClick={retryGeneration}
+              disabled={loading}
+              className="inline-flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <span>{loading ? 'Retrying...' : 'Try Again'}</span>
+            </button>
           </div>
         )}
 
@@ -176,7 +163,7 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
                   isActive ? 'bg-white shadow-lg border-2 border-orange-100' : 'bg-orange-50'
                 }`}
               >
-                <div className={`relative ${isActive ? 'animate-pulse' : ''}`}>
+                <div className={`relative ${isActive && !isCompleted ? 'animate-pulse' : ''}`}>
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                     isCompleted 
                       ? 'bg-green-100' 
@@ -222,8 +209,18 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
           })}
         </div>
 
+        {/* Loading State */}
+        {loading && (
+          <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+            <div className="flex items-center justify-center space-x-2 text-blue-700">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-700"></div>
+              <p>Generating your track...</p>
+            </div>
+          </div>
+        )}
+
         {/* Analysis Results */}
-        {analysisResults && (
+        {analysisResults && !loading && !error && (
           <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-xl border border-orange-200 space-y-4 animate-fade-in">
             <h3 className="text-xl font-semibold text-orange-900">Analysis Complete</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">

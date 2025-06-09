@@ -10,29 +10,70 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Enhanced CORS configuration
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://your-production-domain.com'] 
+    : ['http://localhost:5173', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-// Load tracks data
+// Enhanced middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+// Load tracks data with error handling
 let tracksData = [];
 try {
   const tracksFile = fs.readFileSync(path.join(__dirname, 'tracks.json'), 'utf8');
   tracksData = JSON.parse(tracksFile);
+  console.log(`✅ Loaded ${tracksData.length} tracks from tracks.json`);
 } catch (error) {
-  console.error('Error loading tracks.json:', error);
+  console.error('❌ Error loading tracks.json:', error.message);
   tracksData = [];
 }
+
+// Input validation middleware
+const validateGenerateTrackInput = (req, res, next) => {
+  const { mood, genre, energy } = req.body;
+  
+  if (!mood || typeof mood !== 'string' || mood.trim().length === 0) {
+    return res.status(400).json({ 
+      error: 'Mood is required and must be a non-empty string' 
+    });
+  }
+  
+  if (mood.length > 500) {
+    return res.status(400).json({ 
+      error: 'Mood description is too long (max 500 characters)' 
+    });
+  }
+  
+  // Sanitize inputs
+  req.body.mood = mood.trim();
+  if (genre) req.body.genre = genre.trim();
+  if (energy) req.body.energy = energy.trim();
+  
+  next();
+};
 
 // Helper function to calculate mood similarity
 function calculateMoodSimilarity(trackMood, userMood) {
   const moodSynonyms = {
-    anxious: ['worried', 'nervous', 'stressed', 'tense', 'uneasy'],
-    calm: ['peaceful', 'relaxed', 'serene', 'tranquil', 'quiet'],
-    happy: ['joyful', 'cheerful', 'upbeat', 'positive', 'excited'],
-    sad: ['melancholy', 'down', 'blue', 'depressed', 'gloomy'],
-    energetic: ['active', 'dynamic', 'vibrant', 'lively', 'pumped'],
-    tired: ['exhausted', 'weary', 'sleepy', 'drained', 'fatigued'],
+    anxious: ['worried', 'nervous', 'stressed', 'tense', 'uneasy', 'restless'],
+    calm: ['peaceful', 'relaxed', 'serene', 'tranquil', 'quiet', 'still'],
+    happy: ['joyful', 'cheerful', 'upbeat', 'positive', 'excited', 'elated'],
+    sad: ['melancholy', 'down', 'blue', 'depressed', 'gloomy', 'sorrowful'],
+    energetic: ['active', 'dynamic', 'vibrant', 'lively', 'pumped', 'vigorous'],
+    tired: ['exhausted', 'weary', 'sleepy', 'drained', 'fatigued', 'worn'],
     hopeful: ['optimistic', 'positive', 'encouraging', 'uplifting', 'inspiring'],
     romantic: ['loving', 'passionate', 'intimate', 'tender', 'affectionate'],
     focused: ['concentrated', 'determined', 'motivated', 'driven', 'productive'],
@@ -82,23 +123,25 @@ function calculateEnergySimilarity(trackEnergy, userEnergy) {
     'very high': 5
   };
 
-  const trackLevel = energyLevels[trackEnergy.toLowerCase()] || 3;
-  const userLevel = energyLevels[userEnergy.toLowerCase()] || 3;
+  const trackLevel = energyLevels[trackEnergy?.toLowerCase()] || 3;
+  const userLevel = energyLevels[userEnergy?.toLowerCase()] || 3;
   
   const difference = Math.abs(trackLevel - userLevel);
   return Math.max(0, 1 - (difference / 4));
 }
 
 // API endpoint to generate track
-app.post('/api/generate-track', (req, res) => {
+app.post('/api/generate-track', validateGenerateTrackInput, (req, res) => {
   try {
     const { mood, genre, energy } = req.body;
 
-    if (!mood) {
-      return res.status(400).json({ error: 'Mood is required' });
-    }
+    console.log(`🎵 Generating track for mood: "${mood}", genre: "${genre}", energy: "${energy}"`);
 
-    console.log(`Generating track for mood: "${mood}", genre: "${genre}", energy: "${energy}"`);
+    if (tracksData.length === 0) {
+      return res.status(503).json({ 
+        error: 'Music library is currently unavailable. Please try again later.' 
+      });
+    }
 
     // Filter and score tracks
     const scoredTracks = tracksData.map(track => {
@@ -123,11 +166,11 @@ app.post('/api/generate-track', (req, res) => {
       return { ...track, score };
     });
 
-    // Sort by score and get the best match
+    // Sort by score and get the best matches
     scoredTracks.sort((a, b) => b.score - a.score);
     
     // Add some randomness to avoid always returning the same track
-    const topTracks = scoredTracks.slice(0, Math.min(3, scoredTracks.length));
+    const topTracks = scoredTracks.slice(0, Math.min(5, scoredTracks.length));
     const selectedTrack = topTracks[Math.floor(Math.random() * topTracks.length)];
 
     if (!selectedTrack || selectedTrack.score === 0) {
@@ -139,11 +182,12 @@ app.post('/api/generate-track', (req, res) => {
       
       if (fallbackTracks.length > 0) {
         const fallbackTrack = fallbackTracks[Math.floor(Math.random() * fallbackTracks.length)];
+        console.log(`🔄 Using fallback track: "${fallbackTrack.title}"`);
         return res.json(fallbackTrack);
       }
       
       // Ultimate fallback
-      return res.json(tracksData[0] || {
+      const ultimateFallback = {
         id: 'fallback',
         title: 'Peaceful Moments',
         duration: '3:24',
@@ -152,33 +196,95 @@ app.post('/api/generate-track', (req, res) => {
         energy: 'low',
         description: 'A gentle, calming track to help you find peace.',
         audioUrl: '/tracks/peaceful-moments.mp3'
-      });
+      };
+      
+      console.log(`🆘 Using ultimate fallback track`);
+      return res.json(ultimateFallback);
     }
 
     // Remove the score before sending response
     const { score, ...trackResponse } = selectedTrack;
     
-    console.log(`Selected track: "${trackResponse.title}" (score: ${score.toFixed(2)})`);
+    console.log(`✅ Selected track: "${trackResponse.title}" (score: ${score.toFixed(2)})`);
     res.json(trackResponse);
 
   } catch (error) {
-    console.error('Error generating track:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('❌ Error generating track:', error);
+    res.status(500).json({ 
+      error: 'Internal server error. Please try again later.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
-// Health check endpoint
+// Health check endpoint with detailed information
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  const healthData = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
     tracksLoaded: tracksData.length,
-    timestamp: new Date().toISOString()
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    version: '1.0.0'
+  };
+  
+  console.log(`🏥 Health check requested`);
+  res.json(healthData);
+});
+
+// API status endpoint
+app.get('/api/status', (req, res) => {
+  res.json({
+    api: 'MoodTunes API',
+    version: '1.0.0',
+    status: 'operational',
+    endpoints: [
+      'GET /api/health',
+      'GET /api/status',
+      'POST /api/generate-track'
+    ]
   });
 });
 
-// Start server
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('❌ Unhandled error:', err);
+  res.status(500).json({ 
+    error: 'Internal server error',
+    details: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
+// 404 handler for API routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ 
+    error: 'API endpoint not found',
+    path: req.path,
+    method: req.method
+  });
+});
+
+// Start server with enhanced logging
 app.listen(PORT, () => {
-  console.log(`🎵 MoodTunes API server running on port ${PORT}`);
+  console.log('\n🎵 MoodTunes API Server Started');
+  console.log('================================');
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📚 Loaded ${tracksData.length} tracks`);
   console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`📊 Status: http://localhost:${PORT}/api/status`);
+  console.log(`🎯 Generate track: POST http://localhost:${PORT}/api/generate-track`);
+  console.log('================================\n');
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINT received, shutting down gracefully');
+  process.exit(0);
 });
