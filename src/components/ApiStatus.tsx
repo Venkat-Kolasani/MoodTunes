@@ -14,15 +14,21 @@ const ApiStatus: React.FC<ApiStatusProps> = ({ className = '' }) => {
   const checkApiStatus = async () => {
     setStatus('checking');
     try {
+      console.log('🔍 Starting API health check...');
       const response = await apiService.healthCheck();
+      console.log('📡 API health check response:', response);
+      
       if (response.data) {
+        console.log('✅ API is online:', response.data);
         setStatus('online');
         setDetails(response.data);
       } else {
+        console.log('❌ API is offline:', response.error);
         setStatus('offline');
         setDetails({ error: response.error });
       }
     } catch (error) {
+      console.log('💥 API health check failed with exception:', error);
       setStatus('error');
       setDetails({ error: 'Failed to connect to API' });
     }

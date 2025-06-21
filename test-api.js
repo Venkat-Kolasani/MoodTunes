@@ -85,9 +85,40 @@ async function testAPI() {
   console.log('\n🏁 API Testing Complete!');
 }
 
+// Test API connectivity
+async function testApi() {
+  console.log('Testing API connectivity...');
+  
+  try {
+    const response = await fetch('/api/health', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+    
+    const contentType = response.headers.get('content-type');
+    console.log('Content-Type:', contentType);
+    
+    if (contentType && contentType.includes('application/json')) {
+      const data = await response.json();
+      console.log('Response data:', data);
+    } else {
+      const text = await response.text();
+      console.log('Response text:', text);
+    }
+  } catch (error) {
+    console.error('API test failed:', error);
+  }
+}
+
 // Run tests if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   testAPI();
+  testApi();
 }
 
 export { testAPI };

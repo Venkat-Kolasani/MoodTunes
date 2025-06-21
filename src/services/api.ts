@@ -42,7 +42,8 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     try {
-      const url = `${API_BASE_URL}/api${endpoint}`;
+      // Use relative URL when API_BASE_URL is not set (works with Vite proxy)
+      const url = API_BASE_URL ? `${API_BASE_URL}/api${endpoint}` : `/api${endpoint}`;
       console.log(`Making API request to: ${url}`);
       
       const response = await fetch(url, {
@@ -54,15 +55,28 @@ class ApiService {
       });
 
       console.log(`API response status: ${response.status}`);
+      console.log(`API response headers:`, Object.fromEntries(response.headers.entries()));
 
       let data;
       const contentType = response.headers.get('content-type');
+      console.log(`Content-Type: ${contentType}`);
+      
       if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
+        try {
+          data = await response.json();
+          console.log('Successfully parsed JSON response:', data);
+        } catch (jsonError) {
+          console.error('Failed to parse JSON response:', jsonError);
+          const text = await response.text();
+          console.warn('Raw response text:', text);
+          data = { error: 'Invalid JSON response format' };
+        }
       } else {
         const text = await response.text();
         console.warn('Non-JSON response received:', text);
-        data = { error: 'Invalid response format' };
+        console.warn('Response length:', text.length);
+        console.warn('First 200 characters:', text.substring(0, 200));
+        data = { error: 'Invalid response format - expected JSON' };
       }
 
       if (!response.ok) {
