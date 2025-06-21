@@ -6,7 +6,7 @@ import { useApi } from '../hooks/useApi';
 
 interface MoodAnalysisProps {
   mood: string;
-  onMusicGenerated: (track: GeneratedTrack) => void;
+  onMusicGenerated: (track: GeneratedTrack, isFallbackMode?: boolean) => void;
 }
 
 const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) => {
@@ -92,7 +92,7 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
       setIsFallbackMode(response.isFallback || false);
       setTimeout(() => {
         setShowNarrationOption(!response.isFallback); // Only show narration if not in fallback mode
-        onMusicGenerated(response.data!);
+        onMusicGenerated(response.data!, response.isFallback);
       }, 1500);
     }
   };
@@ -181,7 +181,7 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
               <p className="font-medium">Offline Mode</p>
             </div>
             <p className="text-orange-600 text-sm">
-              Using our curated fallback music library. Your track is ready to play!
+              Using our enhanced fallback music library with AI-generated audio. Your track is ready to play!
             </p>
           </div>
         )}

@@ -140,7 +140,7 @@ class ApiService {
     
     if (!apiAvailable) {
       console.log('🔄 API unavailable, using fallback music service');
-      const fallbackTrack = fallbackMusicService.getTrackForMood(request.mood);
+      const fallbackTrack = await fallbackMusicService.getTrackForMood(request.mood);
       
       // Convert FallbackTrack to GeneratedTrack format
       const generatedTrack: GeneratedTrack = {
@@ -150,7 +150,7 @@ class ApiService {
         mood: fallbackTrack.mood,
         genre: fallbackTrack.genre,
         energy: fallbackTrack.energy,
-        description: `${fallbackTrack.description} (Offline Mode)`,
+        description: fallbackTrack.description,
         audioUrl: fallbackTrack.audioUrl
       };
       
@@ -168,7 +168,7 @@ class ApiService {
       });
     } catch (error) {
       console.log('🔄 API request failed, falling back to offline music');
-      const fallbackTrack = fallbackMusicService.getTrackForMood(request.mood);
+      const fallbackTrack = await fallbackMusicService.getTrackForMood(request.mood);
       
       const generatedTrack: GeneratedTrack = {
         id: fallbackTrack.id,
@@ -177,7 +177,7 @@ class ApiService {
         mood: fallbackTrack.mood,
         genre: fallbackTrack.genre,
         energy: fallbackTrack.energy,
-        description: `${fallbackTrack.description} (Offline Mode)`,
+        description: fallbackTrack.description,
         audioUrl: fallbackTrack.audioUrl
       };
       

@@ -1,4 +1,6 @@
-// Fallback music service for when API is unavailable
+// Enhanced fallback music service with audio generation
+import { audioGenerator } from './audioGenerator';
+
 export interface FallbackTrack {
   id: string;
   title: string;
@@ -8,6 +10,7 @@ export interface FallbackTrack {
   energy: string;
   description: string;
   audioUrl: string;
+  isGenerated?: boolean;
 }
 
 export class FallbackMusicService {
@@ -335,7 +338,7 @@ export class FallbackMusicService {
     romantic: ['romantic', 'loving', 'passionate', 'intimate', 'tender', 'affectionate']
   };
 
-  public getTrackForMood(mood: string): FallbackTrack {
+  public async getTrackForMood(mood: string): Promise<FallbackTrack> {
     console.log(`🎵 Getting fallback track for mood: "${mood}"`);
     
     // Determine the best matching category
@@ -361,14 +364,39 @@ export class FallbackMusicService {
     
     if (categoryTracks.length === 0) {
       console.warn(`⚠️ No tracks found for category ${bestCategory}, using first available track`);
-      return this.fallbackTracks[0];
+      return await this.generatePlayableTrack(this.fallbackTracks[0]);
     }
 
     // Randomly select a track from the category
     const selectedTrack = categoryTracks[Math.floor(Math.random() * categoryTracks.length)];
     console.log(`✅ Selected fallback track: "${selectedTrack.title}"`);
     
-    return selectedTrack;
+    return await this.generatePlayableTrack(selectedTrack);
+  }
+
+  private async generatePlayableTrack(track: FallbackTrack): Promise<FallbackTrack> {
+    try {
+      // Generate actual playable audio
+      const durationInSeconds = this.parseDuration(track.duration);
+      const generatedAudioUrl = await audioGenerator.generateTrackAudio(track.id, track.mood, durationInSeconds);
+      
+      return {
+        ...track,
+        audioUrl: generatedAudioUrl,
+        isGenerated: true,
+        description: `${track.description} (AI-Generated Audio)`
+      };
+    } catch (error) {
+      console.warn('Failed to generate audio, using original track:', error);
+      return track;
+    }
+  }
+
+  private parseDuration(duration: string): number {
+    const parts = duration.split(':');
+    const minutes = parseInt(parts[0], 10);
+    const seconds = parseInt(parts[1], 10);
+    return minutes * 60 + seconds;
   }
 
   public getAllTracks(): FallbackTrack[] {
@@ -384,8 +412,7 @@ export class FallbackMusicService {
     let available = 0;
 
     this.fallbackTracks.forEach(track => {
-      // In a real implementation, you would check if the file exists
-      // For now, we'll assume all tracks are available since they're placeholder files
+      // All tracks are available since we generate them on demand
       available++;
     });
 
@@ -394,6 +421,10 @@ export class FallbackMusicService {
       total: this.fallbackTracks.length,
       missing
     };
+  }
+
+  public cleanup() {
+    audioGenerator.cleanup();
   }
 }
 

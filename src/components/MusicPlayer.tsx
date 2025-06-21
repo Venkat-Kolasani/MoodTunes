@@ -1,14 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, RotateCcw, Share2, Download, Heart, Volume2, AlertCircle } from 'lucide-react';
+import { Play, Pause, RotateCcw, Share2, Download, Heart, Volume2, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 import { GeneratedTrack } from '../types';
 
 interface MusicPlayerProps {
   track: GeneratedTrack;
   mood: string;
   onBackToHome: () => void;
+  isFallbackMode?: boolean;
 }
 
-const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) => {
+const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome, isFallbackMode = false }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -16,6 +17,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
   const [isLiked, setIsLiked] = useState(false);
   const [audioError, setAudioError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [audioReady, setAudioReady] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   // Initialize audio element
@@ -25,9 +27,11 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
 
     // Set up audio event listeners
     const handleLoadedMetadata = () => {
+      console.log('🎵 Audio metadata loaded');
       setDuration(audio.duration);
       setIsLoading(false);
       setAudioError(false);
+      setAudioReady(true);
     };
 
     const handleTimeUpdate = () => {
@@ -39,15 +43,33 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
       setCurrentTime(0);
     };
 
-    const handleError = () => {
+    const handleError = (e: any) => {
+      console.error('🚫 Audio error:', e);
       setAudioError(true);
       setIsLoading(false);
       setIsPlaying(false);
-      console.warn('Audio file not found, using demo mode');
+      
+      // For fallback mode, try to simulate playback
+      if (isFallbackMode) {
+        console.log('🔄 Fallback mode: simulating playback');
+        simulatePlayback();
+      }
     };
 
     const handleCanPlay = () => {
+      console.log('✅ Audio can play');
       setIsLoading(false);
+      setAudioReady(true);
+    };
+
+    const handleLoadStart = () => {
+      console.log('🔄 Audio loading started');
+      setIsLoading(true);
+    };
+
+    const handleLoadedData = () => {
+      console.log('📊 Audio data loaded');
+      setAudioReady(true);
     };
 
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -55,11 +77,14 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
     audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('loadstart', handleLoadStart);
+    audio.addEventListener('loadeddata', handleLoadedData);
 
     // Set initial volume
     audio.volume = volume;
 
-    // Try to load the audio
+    // Load the audio
+    console.log('🎵 Loading audio:', track.audioUrl);
     audio.load();
 
     return () => {
@@ -68,8 +93,10 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
       audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('loadstart', handleLoadStart);
+      audio.removeEventListener('loadeddata', handleLoadedData);
     };
-  }, [track.audioUrl]);
+  }, [track.audioUrl, isFallbackMode]);
 
   // Update volume when volume state changes
   useEffect(() => {
@@ -82,8 +109,8 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (audioError) {
-      // If there's an audio error, simulate playback
+    if (audioError && !audioReady) {
+      // If there's an audio error and no ready audio, simulate playback
       simulatePlayback();
       return;
     }
@@ -93,17 +120,20 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
         audio.pause();
         setIsPlaying(false);
       } else {
-        await audio.play();
-        setIsPlaying(true);
+        // Ensure audio context is resumed (required by some browsers)
+        if (audio.paused) {
+          await audio.play();
+          setIsPlaying(true);
+        }
       }
     } catch (error) {
-      console.warn('Audio playback failed, falling back to simulation:', error);
+      console.warn('🚫 Audio playback failed:', error);
       setAudioError(true);
       simulatePlayback();
     }
   };
 
-  // Fallback simulation for when audio files don't exist
+  // Fallback simulation for when audio files don't exist or fail to load
   const simulatePlayback = () => {
     if (isPlaying) {
       setIsPlaying(false);
@@ -111,7 +141,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
     }
 
     setIsPlaying(true);
-    const totalDurationSeconds = 204; // 3:24 in seconds
+    const totalDurationSeconds = parseDuration(track.duration);
     setDuration(totalDurationSeconds);
 
     const interval = setInterval(() => {
@@ -119,16 +149,23 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
         if (prev >= totalDurationSeconds) {
           setIsPlaying(false);
           clearInterval(interval);
-          return totalDurationSeconds;
+          return 0;
         }
         return prev + 1;
       });
     }, 1000);
   };
 
+  const parseDuration = (durationStr: string): number => {
+    const parts = durationStr.split(':');
+    const minutes = parseInt(parts[0], 10);
+    const seconds = parseInt(parts[1], 10);
+    return minutes * 60 + seconds;
+  };
+
   const resetTrack = () => {
     const audio = audioRef.current;
-    if (audio && !audioError) {
+    if (audio && !audioError && audioReady) {
       audio.currentTime = 0;
       setCurrentTime(0);
     } else {
@@ -147,7 +184,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
     const newTime = parseFloat(e.target.value);
     const audio = audioRef.current;
     
-    if (audio && !audioError) {
+    if (audio && !audioError && audioReady) {
       audio.currentTime = newTime;
     }
     setCurrentTime(newTime);
@@ -176,6 +213,19 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
     }
   };
 
+  const getStatusMessage = () => {
+    if (isFallbackMode && audioReady) {
+      return 'Playing AI-generated audio (Offline Mode)';
+    }
+    if (audioError && !audioReady) {
+      return 'Demo mode - Simulated playback';
+    }
+    if (isLoading) {
+      return 'Loading audio...';
+    }
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-900 via-amber-900 to-orange-800 flex items-center justify-center px-4">
       <div className="max-w-2xl mx-auto">
@@ -186,9 +236,32 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
           crossOrigin="anonymous"
         >
           <source src={track.audioUrl} type="audio/mpeg" />
+          <source src={track.audioUrl} type="audio/wav" />
           <source src={track.audioUrl.replace('.mp3', '.ogg')} type="audio/ogg" />
           Your browser does not support the audio element.
         </audio>
+
+        {/* Status Indicator */}
+        {(isFallbackMode || audioError || isLoading) && (
+          <div className="mb-6 text-center">
+            <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full text-sm ${
+              isFallbackMode 
+                ? 'bg-orange-100 text-orange-800 border border-orange-200'
+                : audioError 
+                  ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                  : 'bg-blue-100 text-blue-800 border border-blue-200'
+            }`}>
+              {isFallbackMode ? (
+                <WifiOff className="w-4 h-4" />
+              ) : audioError ? (
+                <AlertCircle className="w-4 h-4" />
+              ) : (
+                <Wifi className="w-4 h-4" />
+              )}
+              <span>{getStatusMessage()}</span>
+            </div>
+          </div>
+        )}
 
         {/* Track Artwork */}
         <div className="relative mb-8">
@@ -239,14 +312,6 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
           <p className="text-orange-100 max-w-lg mx-auto leading-relaxed">
             {track.description}
           </p>
-          
-          {/* Audio status indicator */}
-          {audioError && (
-            <div className="flex items-center justify-center space-x-2 text-orange-200 text-sm">
-              <AlertCircle className="w-4 h-4" />
-              <span>Demo mode - Audio file not available</span>
-            </div>
-          )}
         </div>
 
         {/* Controls */}
@@ -256,7 +321,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
             <input
               type="range"
               min="0"
-              max={duration || 204}
+              max={duration || parseDuration(track.duration)}
               value={currentTime}
               onChange={handleSeek}
               className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
@@ -327,7 +392,20 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
               <span>Share</span>
             </button>
             
-            <button className="flex items-center space-x-2 px-4 py-2 bg-white/10 text-white rounded-full hover:bg-white/20 transition-all duration-200">
+            <button 
+              onClick={() => {
+                if (track.audioUrl.startsWith('blob:')) {
+                  // For generated audio, create download
+                  const a = document.createElement('a');
+                  a.href = track.audioUrl;
+                  a.download = `${track.title}.wav`;
+                  a.click();
+                } else {
+                  alert('Download feature available for generated tracks');
+                }
+              }}
+              className="flex items-center space-x-2 px-4 py-2 bg-white/10 text-white rounded-full hover:bg-white/20 transition-all duration-200"
+            >
               <Download className="w-4 h-4" />
               <span>Download</span>
             </button>
@@ -344,7 +422,10 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome }) 
           </button>
           
           <p className="text-orange-200 text-sm">
-            Loving MoodTunes? Share it with friends who could use some mood music!
+            {isFallbackMode 
+              ? 'Enjoying offline mode? Your music is generated locally!' 
+              : 'Loving MoodTunes? Share it with friends who could use some mood music!'
+            }
           </p>
         </div>
       </div>

@@ -6,6 +6,7 @@ import MusicPlayer from './components/MusicPlayer';
 import Subscription from './components/Subscription';
 import Header from './components/Header';
 import { AppState, UserData } from './types';
+import { fallbackMusicService } from './services/fallbackMusic';
 
 function App() {
   const [currentView, setCurrentView] = useState<AppState>('landing');
@@ -15,6 +16,7 @@ function App() {
     detectedMood: '',
     generatedTrack: null
   });
+  const [isFallbackMode, setIsFallbackMode] = useState(false);
 
   // Load user data from localStorage on mount
   useEffect(() => {
@@ -30,6 +32,13 @@ function App() {
     localStorage.setItem('moodtunes-user', JSON.stringify(userData));
   }, [userData]);
 
+  // Cleanup generated audio on unmount
+  useEffect(() => {
+    return () => {
+      fallbackMusicService.cleanup();
+    };
+  }, []);
+
   const handleStartJourney = () => {
     setCurrentView('moodCapture');
   };
@@ -39,12 +48,13 @@ function App() {
     setCurrentView('moodAnalysis');
   };
 
-  const handleMusicGenerated = (track: any) => {
+  const handleMusicGenerated = (track: any, fallbackMode: boolean = false) => {
     setUserData(prev => ({ 
       ...prev, 
       generatedTrack: track,
       dailyListens: prev.dailyListens + 1
     }));
+    setIsFallbackMode(fallbackMode);
     setCurrentView('musicPlayer');
   };
 
@@ -55,6 +65,7 @@ function App() {
 
   const handleBackToHome = () => {
     setCurrentView('landing');
+    setIsFallbackMode(false);
   };
 
   const handleSubscriptionView = () => {
@@ -90,7 +101,7 @@ function App() {
         {currentView === 'moodAnalysis' && (
           <MoodAnalysis 
             mood={userData.detectedMood}
-            onMusicGenerated={handleMusicGenerated}
+            onMusicGenerated={(track, fallbackMode) => handleMusicGenerated(track, fallbackMode)}
           />
         )}
         
@@ -99,6 +110,7 @@ function App() {
             track={userData.generatedTrack}
             mood={userData.detectedMood}
             onBackToHome={handleBackToHome}
+            isFallbackMode={isFallbackMode}
           />
         )}
         
