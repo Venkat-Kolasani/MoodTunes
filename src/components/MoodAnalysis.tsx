@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Brain, Sparkles, Music, Heart, AlertCircle, RefreshCw, Mic, CheckCircle } from 'lucide-react';
+import { Brain, Sparkles, Music, Heart, AlertCircle, RefreshCw, Mic, CheckCircle, Wifi, WifiOff } from 'lucide-react';
 import { GeneratedTrack } from '../types';
 import { apiService } from '../services/api';
 import { useApi } from '../hooks/useApi';
@@ -17,6 +17,7 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
   const [narrationQuote, setNarrationQuote] = useState<string | null>(null);
   const [isPlayingNarration, setIsPlayingNarration] = useState(false);
   const [trackGenerated, setTrackGenerated] = useState(false);
+  const [isFallbackMode, setIsFallbackMode] = useState(false);
   
   const { data: track, loading, error, execute } = useApi<GeneratedTrack>();
   const { 
@@ -88,8 +89,9 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
 
     if (response.data) {
       setTrackGenerated(true);
+      setIsFallbackMode(response.isFallback || false);
       setTimeout(() => {
-        setShowNarrationOption(true);
+        setShowNarrationOption(!response.isFallback); // Only show narration if not in fallback mode
         onMusicGenerated(response.data!);
       }, 1500);
     }
@@ -123,6 +125,7 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
       setCurrentStep(0);
       setTrackGenerated(false);
       setShowNarrationOption(false);
+      setIsFallbackMode(false);
       generateTrack(analysisResults);
     }
   };
@@ -170,8 +173,21 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
           </div>
         </div>
 
+        {/* Fallback Mode Indicator */}
+        {isFallbackMode && trackGenerated && (
+          <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg space-y-2">
+            <div className="flex items-center justify-center space-x-2 text-orange-700">
+              <WifiOff className="w-5 h-5" />
+              <p className="font-medium">Offline Mode</p>
+            </div>
+            <p className="text-orange-600 text-sm">
+              Using our curated fallback music library. Your track is ready to play!
+            </p>
+          </div>
+        )}
+
         {/* Error Message with Retry */}
-        {error && (
+        {error && !isFallbackMode && (
           <div className="bg-red-50 border border-red-200 p-4 rounded-lg space-y-3">
             <div className="flex items-center justify-center space-x-2 text-red-700">
               <AlertCircle className="w-5 h-5" />
@@ -270,7 +286,9 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
               </div>
               <div className="bg-white p-3 rounded-lg border border-orange-100">
                 <span className="font-medium text-orange-700">Status:</span>
-                <p className="text-green-600">{trackGenerated ? 'Track Generated' : 'Processing...'}</p>
+                <p className={`${trackGenerated ? 'text-green-600' : 'text-orange-600'}`}>
+                  {trackGenerated ? (isFallbackMode ? 'Track Ready (Offline)' : 'Track Generated') : 'Processing...'}
+                </p>
               </div>
             </div>
             {trackGenerated && (
@@ -281,8 +299,8 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
           </div>
         )}
 
-        {/* Narration Option */}
-        {showNarrationOption && !narrationAudio && (
+        {/* Narration Option - Only show if not in fallback mode */}
+        {showNarrationOption && !narrationAudio && !isFallbackMode && (
           <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-xl border border-purple-200 space-y-4">
             <div className="flex items-center justify-center space-x-2">
               <Mic className="w-6 h-6 text-purple-600" />
