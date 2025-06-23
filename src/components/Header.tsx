@@ -1,7 +1,6 @@
 import React from 'react';
 import { Music, ArrowLeft, Crown } from 'lucide-react';
 import { AppState, UserData } from '../types';
-import ApiStatus from './ApiStatus';
 
 interface HeaderProps {
   currentView: AppState;
@@ -43,9 +42,6 @@ const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="flex items-center space-x-4">
-            {/* API Status Indicator */}
-            <ApiStatus className="hidden sm:flex" />
-            
             {!userData.isPremium && (
               <div className="hidden sm:flex items-center space-x-2 text-sm text-orange-700">
                 <span>{userData.dailyListens}/3 free listens today</span>
