@@ -170,12 +170,12 @@ function calculateEnergySimilarity(trackEnergy, userEnergy) {
   return Math.max(0, 1 - (difference / 4));
 }
 
-// Helper function to generate enhanced track details using OpenAI
+// Helper function to generate enhanced track details using Google Gemini
 async function generateEnhancedTrackDetails(mood, genre, energy, baseTrack) {
-  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+  const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
   
-  if (!OPENAI_API_KEY) {
-    // Return enhanced details without OpenAI
+  if (!GOOGLE_API_KEY) {
+    // Return enhanced details without Gemini
     return {
       ...baseTrack,
       title: `${baseTrack.title} (Enhanced)`,
@@ -183,6 +183,7 @@ async function generateEnhancedTrackDetails(mood, genre, energy, baseTrack) {
     };
   }
 
+  const model = process.env.GOOGLE_GEMINI_MODEL || 'gemini-pro';
   const prompt = `Create an enhanced music track based on:
 - Mood: ${mood}
 - Genre: ${genre || baseTrack.genre}
@@ -197,35 +198,33 @@ Generate a JSON response with:
 Keep it concise and engaging. Respond only with valid JSON.`;
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GOOGLE_API_KEY}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a music curator who creates personalized track descriptions. Always respond with valid JSON only.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 200,
-        temperature: 0.8,
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.8,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 200,
+        }
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
     }
 
     const data = await response.json();
-    const content = data.choices[0]?.message?.content?.trim();
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     
     if (content) {
       try {
@@ -237,11 +236,11 @@ Keep it concise and engaging. Respond only with valid JSON.`;
           mood: enhanced.enhancedMood || baseTrack.mood
         };
       } catch (parseError) {
-        console.warn('Failed to parse OpenAI response, using base track');
+        console.warn('Failed to parse Gemini response, using base track');
       }
     }
   } catch (error) {
-    console.error('OpenAI enhancement error:', error);
+    console.error('Gemini enhancement error:', error);
   }
 
   // Fallback enhancement
@@ -252,49 +251,49 @@ Keep it concise and engaging. Respond only with valid JSON.`;
   };
 }
 
-// Helper function to generate motivational quote using OpenAI
+// Helper function to generate motivational quote using Google Gemini
 async function generateMotivationalQuote(mood) {
-  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+  const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
   
-  if (!OPENAI_API_KEY) {
-    throw new Error('OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.');
+  if (!GOOGLE_API_KEY) {
+    throw new Error('Google API key not configured. Please set GOOGLE_API_KEY environment variable.');
   }
 
+  const model = process.env.GOOGLE_GEMINI_MODEL || 'gemini-pro';
   const prompt = `Generate a short, powerful motivational quote (1-2 sentences, max 100 words) for someone feeling "${mood}". The quote should be uplifting, encouraging, and help them feel better. Make it personal and inspiring.`;
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GOOGLE_API_KEY}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a compassionate motivational speaker who creates personalized, uplifting quotes.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 150,
-        temperature: 0.8,
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.8,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 150,
+        }
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
+      throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
     }
 
     const data = await response.json();
-    return data.choices[0]?.message?.content?.trim() || 'You have the strength to overcome any challenge. Believe in yourself.';
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    
+    return content || 'You have the strength to overcome any challenge. Believe in yourself.';
   } catch (error) {
-    console.error('OpenAI API error:', error);
+    console.error('Gemini API error:', error);
     // Fallback quotes based on mood
     const fallbackQuotes = {
       sad: "Every storm runs out of rain. Your brighter days are coming, and you have the strength to weather this moment.",
@@ -463,7 +462,7 @@ app.post('/api/generate-track', validateGenerateTrackInput, async (req, res) => 
       return res.json(ultimateFallback);
     }
 
-    // Enhance the track with OpenAI if available
+    // Enhance the track with Gemini if available
     const enhancedTrack = await generateEnhancedTrackDetails(mood, genre, energy, selectedTrack);
     
     // Remove the score and format response
@@ -493,10 +492,10 @@ app.post('/api/narrate', validateNarrateInput, async (req, res) => {
     console.log(`🎙️ Generating motivational narration for mood: "${mood}"`);
 
     // Check if API keys are configured
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.GOOGLE_API_KEY) {
       return res.status(503).json({
-        error: 'OpenAI API key not configured',
-        message: 'Please set your OPENAI_API_KEY environment variable to use this feature.',
+        error: 'Google API key not configured',
+        message: 'Please set your GOOGLE_API_KEY environment variable to use this feature.',
         setupRequired: true
       });
     }
@@ -509,7 +508,7 @@ app.post('/api/narrate', validateNarrateInput, async (req, res) => {
       });
     }
 
-    // Step 1: Generate motivational quote using OpenAI
+    // Step 1: Generate motivational quote using Google Gemini
     console.log('📝 Generating motivational quote...');
     const motivationalQuote = await generateMotivationalQuote(mood);
     console.log(`✅ Generated quote: "${motivationalQuote}"`);
@@ -540,10 +539,10 @@ app.post('/api/narrate', validateNarrateInput, async (req, res) => {
     console.error('❌ Error generating narration:', error);
     
     // Provide specific error messages for different failure types
-    if (error.message.includes('OpenAI API key')) {
+    if (error.message.includes('Google API key')) {
       return res.status(503).json({
-        error: 'OpenAI API configuration error',
-        message: 'Please check your OpenAI API key and try again.',
+        error: 'Google API configuration error',
+        message: 'Please check your Google API key and try again.',
         setupRequired: true
       });
     }
@@ -576,10 +575,10 @@ app.get('/api/health', (req, res) => {
     version: '1.0.0',
     features: {
       trackGeneration: true,
-      trackEnhancement: !!process.env.OPENAI_API_KEY,
+      trackEnhancement: !!process.env.GOOGLE_API_KEY,
       narration: {
-        available: !!(process.env.OPENAI_API_KEY && process.env.ELEVENLABS_API_KEY),
-        openai: !!process.env.OPENAI_API_KEY,
+        available: !!(process.env.GOOGLE_API_KEY && process.env.ELEVENLABS_API_KEY),
+        gemini: !!process.env.GOOGLE_API_KEY,
         elevenlabs: !!process.env.ELEVENLABS_API_KEY
       }
     }
@@ -639,18 +638,18 @@ app.listen(PORT, () => {
   console.log(`🎙️ Generate narration: POST http://localhost:${PORT}/api/narrate`);
   
   // Check API key configuration
-  const hasOpenAI = !!process.env.OPENAI_API_KEY;
+  const hasGemini = !!process.env.GOOGLE_API_KEY;
   const hasElevenLabs = !!process.env.ELEVENLABS_API_KEY;
   
   console.log('\n🔑 API Key Status:');
-  console.log(`   OpenAI: ${hasOpenAI ? '✅ Configured' : '❌ Missing'}`);
+  console.log(`   Google Gemini: ${hasGemini ? '✅ Configured' : '❌ Missing'}`);
   console.log(`   ElevenLabs: ${hasElevenLabs ? '✅ Configured' : '❌ Missing'}`);
   
-  if (!hasOpenAI || !hasElevenLabs) {
+  if (!hasGemini || !hasElevenLabs) {
     console.log('\n⚠️  Some features require API keys:');
-    if (!hasOpenAI) console.log('   Set OPENAI_API_KEY for enhanced track details and narration');
+    if (!hasGemini) console.log('   Set GOOGLE_API_KEY for enhanced track details and narration');
     if (!hasElevenLabs) console.log('   Set ELEVENLABS_API_KEY for voice narration');
-    console.log('   Optional: Set ELEVENLABS_VOICE_ID for custom voice');
+    console.log('   Optional: Set GOOGLE_GEMINI_MODEL for custom model');
   }
   
   console.log('================================\n');

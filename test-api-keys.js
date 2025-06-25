@@ -15,10 +15,10 @@ const API_BASE_URL = 'http://localhost:3001';
 
 // Test configuration
 const TEST_CONFIG = {
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY,
-    endpoint: 'https://api.openai.com/v1/models',
-    testEndpoint: 'https://api.openai.com/v1/chat/completions'
+  gemini: {
+    apiKey: process.env.GOOGLE_API_KEY,
+    model: process.env.GOOGLE_GEMINI_MODEL || 'gemini-pro',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models'
   },
   elevenlabs: {
     apiKey: process.env.ELEVENLABS_API_KEY,
@@ -27,15 +27,15 @@ const TEST_CONFIG = {
   }
 };
 
-console.log('🧪 MoodTunes API Key Verification Suite');
-console.log('=====================================\n');
+console.log('🧪 MoodTunes API Key Verification Suite (Google Gemini)');
+console.log('======================================================\n');
 
 // 1. Check Environment Variables
 function checkEnvironmentVariables() {
   console.log('1. 🔍 Checking Environment Variables...');
   
-  const requiredVars = ['OPENAI_API_KEY', 'ELEVENLABS_API_KEY'];
-  const optionalVars = ['ELEVENLABS_VOICE_ID'];
+  const requiredVars = ['GOOGLE_API_KEY', 'ELEVENLABS_API_KEY'];
+  const optionalVars = ['GOOGLE_GEMINI_MODEL', 'ELEVENLABS_VOICE_ID'];
   
   let allConfigured = true;
   
@@ -58,63 +58,71 @@ function checkEnvironmentVariables() {
   return allConfigured;
 }
 
-// 2. Test OpenAI API Authentication
-async function testOpenAIAuthentication() {
-  console.log('2. 🤖 Testing OpenAI API Authentication...');
+// 2. Test Google Gemini API Authentication
+async function testGeminiAuthentication() {
+  console.log('2. 🤖 Testing Google Gemini API Authentication...');
   
-  if (!TEST_CONFIG.openai.apiKey) {
-    console.log('   ❌ OpenAI API key not configured\n');
+  if (!TEST_CONFIG.gemini.apiKey) {
+    console.log('   ❌ Google API key not configured\n');
     return false;
   }
   
   try {
     // Test 1: List models (simple auth test)
     console.log('   Testing basic authentication...');
-    const modelsResponse = await fetch(TEST_CONFIG.openai.endpoint, {
-      headers: {
-        'Authorization': `Bearer ${TEST_CONFIG.openai.apiKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const modelsResponse = await fetch(`${TEST_CONFIG.gemini.endpoint}?key=${TEST_CONFIG.gemini.apiKey}`);
     
     if (modelsResponse.ok) {
       const models = await modelsResponse.json();
-      console.log(`   ✅ Authentication successful (${models.data?.length || 0} models available)`);
+      console.log(`   ✅ Authentication successful (${models.models?.length || 0} models available)`);
+      
+      // Check if our target model is available
+      const targetModel = models.models?.find(m => m.name.includes(TEST_CONFIG.gemini.model));
+      if (targetModel) {
+        console.log(`   🎯 Target model "${TEST_CONFIG.gemini.model}" is available`);
+      } else {
+        console.log(`   ⚠️  Target model "${TEST_CONFIG.gemini.model}" not found, but API is working`);
+      }
     } else {
       const error = await modelsResponse.text();
       console.log(`   ❌ Authentication failed: ${modelsResponse.status} ${error}`);
       return false;
     }
     
-    // Test 2: Simple completion request
-    console.log('   Testing chat completion...');
-    const completionResponse = await fetch(TEST_CONFIG.openai.testEndpoint, {
+    // Test 2: Simple content generation request
+    console.log('   Testing content generation...');
+    const generateResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${TEST_CONFIG.gemini.model}:generateContent?key=${TEST_CONFIG.gemini.apiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${TEST_CONFIG.openai.apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: 'Say "API test successful"' }],
-        max_tokens: 10
+        contents: [{
+          parts: [{
+            text: 'Say "API test successful" in a creative way.'
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 50
+        }
       })
     });
     
-    if (completionResponse.ok) {
-      const completion = await completionResponse.json();
-      const message = completion.choices?.[0]?.message?.content;
-      console.log(`   ✅ Chat completion successful: "${message}"`);
-      console.log(`   📊 Usage: ${completion.usage?.total_tokens || 0} tokens\n`);
+    if (generateResponse.ok) {
+      const generation = await generateResponse.json();
+      const content = generation.candidates?.[0]?.content?.parts?.[0]?.text;
+      console.log(`   ✅ Content generation successful: "${content}"`);
+      console.log(`   📊 Usage: ${generation.usageMetadata?.totalTokenCount || 0} tokens\n`);
       return true;
     } else {
-      const error = await completionResponse.text();
-      console.log(`   ❌ Chat completion failed: ${completionResponse.status} ${error}\n`);
+      const error = await generateResponse.text();
+      console.log(`   ❌ Content generation failed: ${generateResponse.status} ${error}\n`);
       return false;
     }
     
   } catch (error) {
-    console.log(`   ❌ OpenAI API test failed: ${error.message}\n`);
+    console.log(`   ❌ Gemini API test failed: ${error.message}\n`);
     return false;
   }
 }
@@ -200,7 +208,7 @@ async function testLocalAPIHealth() {
       console.log(`   🔧 Features:`);
       console.log(`      - Track generation: ${health.features?.trackGeneration ? '✅' : '❌'}`);
       console.log(`      - Narration available: ${health.features?.narration?.available ? '✅' : '❌'}`);
-      console.log(`      - OpenAI configured: ${health.features?.narration?.openai ? '✅' : '❌'}`);
+      console.log(`      - Gemini configured: ${health.features?.narration?.gemini ? '✅' : '❌'}`);
       console.log(`      - ElevenLabs configured: ${health.features?.narration?.elevenlabs ? '✅' : '❌'}`);
       console.log('');
       return health.features?.narration?.available || false;
@@ -316,7 +324,7 @@ async function testErrorHandling() {
 async function runAllTests() {
   const results = {
     environment: false,
-    openai: false,
+    gemini: false,
     elevenlabs: false,
     localApi: false,
     narration: false,
@@ -324,11 +332,11 @@ async function runAllTests() {
   };
   
   results.environment = checkEnvironmentVariables();
-  results.openai = await testOpenAIAuthentication();
+  results.gemini = await testGeminiAuthentication();
   results.elevenlabs = await testElevenLabsAuthentication();
   results.localApi = await testLocalAPIHealth();
   
-  if (results.openai && results.elevenlabs && results.localApi) {
+  if (results.gemini && results.elevenlabs && results.localApi) {
     results.narration = await testNarrationPipeline();
   } else {
     console.log('5. ⏭️  Skipping narration pipeline test (dependencies not met)\n');
@@ -340,7 +348,7 @@ async function runAllTests() {
   console.log('📋 Test Summary');
   console.log('===============');
   console.log(`Environment Variables: ${results.environment ? '✅ PASS' : '❌ FAIL'}`);
-  console.log(`OpenAI Authentication: ${results.openai ? '✅ PASS' : '❌ FAIL'}`);
+  console.log(`Google Gemini Authentication: ${results.gemini ? '✅ PASS' : '❌ FAIL'}`);
   console.log(`ElevenLabs Authentication: ${results.elevenlabs ? '✅ PASS' : '❌ FAIL'}`);
   console.log(`Local API Health: ${results.localApi ? '✅ PASS' : '❌ FAIL'}`);
   console.log(`Narration Pipeline: ${results.narration ? '✅ PASS' : '❌ FAIL'}`);
@@ -359,7 +367,7 @@ async function runAllTests() {
     if (!results.environment) {
       console.log('\n💡 Next steps:');
       console.log('1. Copy .env.example to .env');
-      console.log('2. Add your OpenAI API key');
+      console.log('2. Get your Google API key from https://aistudio.google.com/app/apikey');
       console.log('3. Add your ElevenLabs API key');
       console.log('4. Restart your server');
     }
@@ -367,7 +375,7 @@ async function runAllTests() {
 }
 
 // Export for use in other scripts
-export { runAllTests, testOpenAIAuthentication, testElevenLabsAuthentication };
+export { runAllTests, testGeminiAuthentication, testElevenLabsAuthentication };
 
 // Run tests if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
