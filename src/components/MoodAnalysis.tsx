@@ -18,6 +18,7 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
   const [isPlayingNarration, setIsPlayingNarration] = useState(false);
   const [trackGenerated, setTrackGenerated] = useState(false);
   const [isFallbackMode, setIsFallbackMode] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   
   const { data: track, loading, error, execute } = useApi<GeneratedTrack>();
   const { 
@@ -79,6 +80,8 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
   };
 
   const generateTrack = async (analysis: any) => {
+    console.log(`🎵 Generating track (attempt ${retryCount + 1})...`);
+    
     const response = await execute(() => 
       apiService.generateTrack({
         mood: mood,
@@ -126,7 +129,25 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
       setTrackGenerated(false);
       setShowNarrationOption(false);
       setIsFallbackMode(false);
-      generateTrack(analysisResults);
+      setRetryCount(prev => prev + 1);
+      
+      // Reset the analysis steps
+      let stepInterval: NodeJS.Timeout;
+      stepInterval = setInterval(() => {
+        setCurrentStep(prev => {
+          if (prev >= steps.length - 1) {
+            clearInterval(stepInterval);
+            
+            // Complete analysis and generate track
+            setTimeout(async () => {
+              await generateTrack(analysisResults);
+            }, 1000);
+            
+            return prev;
+          }
+          return prev + 1;
+        });
+      }, 800); // Faster retry
     }
   };
 
@@ -151,7 +172,7 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
           }
           return prev + 1;
         });
-      }, 1500);
+      }, 1200); // Slightly faster progression
     };
 
     runAnalysis();
@@ -186,7 +207,7 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
           </div>
         )}
 
-        {/* Error Message with Retry */}
+        {/* Enhanced Error Message with Retry */}
         {error && !isFallbackMode && (
           <div className="bg-red-50 border border-red-200 p-4 rounded-lg space-y-3">
             <div className="flex items-center justify-center space-x-2 text-red-700">
@@ -194,14 +215,49 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
               <p className="font-medium">Generation Failed</p>
             </div>
             <p className="text-red-600 text-sm">{error}</p>
-            <button
-              onClick={retryGeneration}
-              disabled={loading}
-              className="inline-flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              <span>{loading ? 'Retrying...' : 'Try Again'}</span>
-            </button>
+            {retryCount > 0 && (
+              <p className="text-red-500 text-xs">
+                Attempt {retryCount + 1} - If this continues, we'll use offline mode
+              </p>
+            )}
+            <div className="flex justify-center space-x-3">
+              <button
+                onClick={retryGeneration}
+                disabled={loading}
+                className="inline-flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span>{loading ? 'Retrying...' : 'Try Again'}</span>
+              </button>
+              
+              {retryCount >= 1 && (
+                <button
+                  onClick={() => {
+                    setIsFallbackMode(true);
+                    setTrackGenerated(true);
+                    if (analysisResults) {
+                      // Force fallback mode
+                      setTimeout(() => {
+                        onMusicGenerated({
+                          id: 'fallback-' + Date.now(),
+                          title: 'Peaceful Moments',
+                          duration: '3:24',
+                          mood: analysisResults.primaryEmotion,
+                          genre: analysisResults.genre,
+                          energy: analysisResults.energyLevel,
+                          description: `A ${analysisResults.genre} track crafted for your "${mood}" mood.`,
+                          audioUrl: '/tracks/peaceful-moments.mp3'
+                        }, true);
+                      }, 500);
+                    }
+                  }}
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors duration-200"
+                >
+                  <WifiOff className="w-4 h-4" />
+                  <span>Use Offline Mode</span>
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -257,13 +313,18 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
           })}
         </div>
 
-        {/* Loading State */}
+        {/* Loading State with timeout indicator */}
         {loading && (
           <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
             <div className="flex items-center justify-center space-x-2 text-blue-700">
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-700"></div>
               <p>Generating your personalized track...</p>
             </div>
+            {retryCount > 0 && (
+              <p className="text-blue-600 text-sm mt-2">
+                This may take a moment. We'll switch to offline mode if needed.
+              </p>
+            )}
           </div>
         )}
 

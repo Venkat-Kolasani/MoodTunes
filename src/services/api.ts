@@ -54,7 +54,7 @@ class ApiService {
       const response = await fetch('/api/health', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(5000) // 5 second timeout
+        signal: AbortSignal.timeout(3000) // Reduced from 5 seconds to 3 seconds
       });
 
       const contentType = response.headers.get('content-type');
@@ -85,7 +85,7 @@ class ApiService {
           'Content-Type': 'application/json',
           ...options.headers,
         },
-        signal: AbortSignal.timeout(10000), // 10 second timeout
+        signal: AbortSignal.timeout(5000), // Reduced from 10 seconds to 5 seconds
         ...options,
       });
 
@@ -128,6 +128,12 @@ class ApiService {
     } catch (error) {
       console.error('API request failed:', error);
       this.isApiAvailable = false;
+      
+      // Provide more specific error messages for timeouts
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        throw new Error('Request timed out - the server may be overloaded. Please try again.');
+      }
+      
       throw error;
     }
   }
@@ -209,6 +215,15 @@ class ApiService {
         body: JSON.stringify(request),
       });
     } catch (error) {
+      // Provide more specific error message for timeouts
+      if (error instanceof Error && error.message.includes('timed out')) {
+        return {
+          error: 'Voice generation is taking longer than expected. Please try again or check your internet connection.',
+          status: 408,
+          isFallback: true
+        };
+      }
+      
       return {
         error: 'Narration service temporarily unavailable. Please try again later.',
         status: 503,
