@@ -18,6 +18,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome, is
   const [audioError, setAudioError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [audioReady, setAudioReady] = useState(false);
+  const [loadAttempts, setLoadAttempts] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   // Initialize audio element
@@ -45,13 +46,16 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome, is
 
     const handleError = (e: any) => {
       console.error('🚫 Audio error:', e);
-      setAudioError(true);
-      setIsLoading(false);
-      setIsPlaying(false);
+      setLoadAttempts(prev => prev + 1);
       
-      // For fallback mode, try to simulate playback
-      if (isFallbackMode) {
-        console.log('🔄 Fallback mode: simulating playback');
+      // Try fallback after first attempt fails
+      if (loadAttempts === 0) {
+        console.log('🔄 Trying fallback audio generation...');
+        simulatePlayback();
+      } else {
+        setAudioError(true);
+        setIsLoading(false);
+        setIsPlaying(false);
         simulatePlayback();
       }
     };
@@ -60,17 +64,41 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome, is
       console.log('✅ Audio can play');
       setIsLoading(false);
       setAudioReady(true);
+      setAudioError(false);
     };
 
     const handleLoadStart = () => {
       console.log('🔄 Audio loading started');
       setIsLoading(true);
+      setAudioError(false);
     };
 
     const handleLoadedData = () => {
       console.log('📊 Audio data loaded');
       setAudioReady(true);
+      setIsLoading(false);
     };
+
+    const handleWaiting = () => {
+      console.log('⏳ Audio waiting for data...');
+      setIsLoading(true);
+    };
+
+    const handleCanPlayThrough = () => {
+      console.log('🎯 Audio can play through');
+      setIsLoading(false);
+      setAudioReady(true);
+    };
+
+    // Add timeout for loading
+    const loadTimeout = setTimeout(() => {
+      if (isLoading && !audioReady) {
+        console.log('⏰ Audio loading timeout, using simulation');
+        setIsLoading(false);
+        setAudioError(true);
+        simulatePlayback();
+      }
+    }, 5000); // 5 second timeout
 
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('timeupdate', handleTimeUpdate);
@@ -79,15 +107,18 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome, is
     audio.addEventListener('canplay', handleCanPlay);
     audio.addEventListener('loadstart', handleLoadStart);
     audio.addEventListener('loadeddata', handleLoadedData);
+    audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('canplaythrough', handleCanPlayThrough);
 
     // Set initial volume
     audio.volume = volume;
 
-    // Load the audio
+    // Load the audio with multiple source attempts
     console.log('🎵 Loading audio:', track.audioUrl);
     audio.load();
 
     return () => {
+      clearTimeout(loadTimeout);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
@@ -95,8 +126,10 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome, is
       audio.removeEventListener('canplay', handleCanPlay);
       audio.removeEventListener('loadstart', handleLoadStart);
       audio.removeEventListener('loadeddata', handleLoadedData);
+      audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('canplaythrough', handleCanPlayThrough);
     };
-  }, [track.audioUrl, isFallbackMode]);
+  }, [track.audioUrl, loadAttempts]);
 
   // Update volume when volume state changes
   useEffect(() => {
@@ -107,10 +140,14 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome, is
 
   const togglePlayPause = async () => {
     const audio = audioRef.current;
-    if (!audio) return;
+    
+    // If audio failed to load, use simulation
+    if (audioError || !audioReady) {
+      simulatePlayback();
+      return;
+    }
 
-    if (audioError && !audioReady) {
-      // If there's an audio error and no ready audio, simulate playback
+    if (!audio) {
       simulatePlayback();
       return;
     }
@@ -143,6 +180,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome, is
     setIsPlaying(true);
     const totalDurationSeconds = parseDuration(track.duration);
     setDuration(totalDurationSeconds);
+    setAudioError(true); // Mark as simulated
 
     const interval = setInterval(() => {
       setCurrentTime(prev => {
@@ -217,7 +255,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome, is
     if (isFallbackMode && audioReady) {
       return 'Playing AI-generated audio (Offline Mode)';
     }
-    if (audioError && !audioReady) {
+    if (audioError) {
       return 'Demo mode - Simulated playback';
     }
     if (isLoading) {
@@ -226,17 +264,29 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome, is
     return null;
   };
 
+  const getStatusIcon = () => {
+    if (audioError) return <AlertCircle className="w-4 h-4" />;
+    if (isFallbackMode) return <WifiOff className="w-4 h-4" />;
+    return <Wifi className="w-4 h-4" />;
+  };
+
+  const getStatusColor = () => {
+    if (audioError) return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+    if (isFallbackMode) return 'bg-orange-100 text-orange-800 border border-orange-200';
+    return 'bg-blue-100 text-blue-800 border border-blue-200';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-900 via-amber-900 to-orange-800 flex items-center justify-center px-4">
       <div className="max-w-2xl mx-auto">
-        {/* Hidden audio element */}
+        {/* Hidden audio element with multiple source fallbacks */}
         <audio
           ref={audioRef}
           preload="metadata"
           crossOrigin="anonymous"
         >
           <source src={track.audioUrl} type="audio/mpeg" />
-          <source src={track.audioUrl} type="audio/wav" />
+          <source src={track.audioUrl.replace('.mp3', '.wav')} type="audio/wav" />
           <source src={track.audioUrl.replace('.mp3', '.ogg')} type="audio/ogg" />
           Your browser does not support the audio element.
         </audio>
@@ -244,20 +294,8 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome, is
         {/* Status Indicator */}
         {(isFallbackMode || audioError || isLoading) && (
           <div className="mb-6 text-center">
-            <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full text-sm ${
-              isFallbackMode 
-                ? 'bg-orange-100 text-orange-800 border border-orange-200'
-                : audioError 
-                  ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-                  : 'bg-blue-100 text-blue-800 border border-blue-200'
-            }`}>
-              {isFallbackMode ? (
-                <WifiOff className="w-4 h-4" />
-              ) : audioError ? (
-                <AlertCircle className="w-4 h-4" />
-              ) : (
-                <Wifi className="w-4 h-4" />
-              )}
+            <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full text-sm ${getStatusColor()}`}>
+              {getStatusIcon()}
               <span>{getStatusMessage()}</span>
             </div>
           </div>
@@ -422,9 +460,11 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome, is
           </button>
           
           <p className="text-orange-200 text-sm">
-            {isFallbackMode 
-              ? 'Enjoying offline mode? Your music is generated locally!' 
-              : 'Loving MoodTunes? Share it with friends who could use some mood music!'
+            {audioError 
+              ? 'Demo mode active - Experience the full MoodTunes interface!' 
+              : isFallbackMode 
+                ? 'Enjoying offline mode? Your music is generated locally!' 
+                : 'Loving MoodTunes? Share it with friends who could use some mood music!'
             }
           </p>
         </div>

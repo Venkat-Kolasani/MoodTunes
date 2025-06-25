@@ -33,6 +33,23 @@ app.use((req, res, next) => {
   next();
 });
 
+// Create necessary directories
+const publicDir = path.join(__dirname, 'public');
+const audioDir = path.join(publicDir, 'audio');
+const tracksDir = path.join(publicDir, 'tracks');
+
+[publicDir, audioDir, tracksDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log(`📁 Created directory: ${dir}`);
+  }
+});
+
+// Serve static files
+app.use('/audio', express.static(audioDir));
+app.use('/tracks', express.static(tracksDir));
+app.use('/public', express.static(publicDir));
+
 // Root route handler
 app.get('/', (req, res) => {
   res.json({
@@ -45,6 +62,11 @@ app.get('/', (req, res) => {
       status: '/api/status',
       generateTrack: 'POST /api/generate-track',
       narrate: 'POST /api/narrate'
+    },
+    staticFiles: {
+      audio: '/audio',
+      tracks: '/tracks',
+      public: '/public'
     },
     documentation: 'Visit /api/health for server health information'
   });
@@ -363,13 +385,6 @@ async function textToSpeech(text, mood) {
 
 // Helper function to save audio file
 function saveAudioFile(audioBuffer, mood) {
-  const audioDir = path.join(__dirname, 'public', 'audio');
-  
-  // Create audio directory if it doesn't exist
-  if (!fs.existsSync(audioDir)) {
-    fs.mkdirSync(audioDir, { recursive: true });
-  }
-
   // Generate filename based on mood and timestamp
   const timestamp = Date.now();
   const sanitizedMood = mood.toLowerCase().replace(/[^a-z0-9]/g, '-');
@@ -381,6 +396,42 @@ function saveAudioFile(audioBuffer, mood) {
   
   return `/audio/${filename}`;
 }
+
+// Helper function to create placeholder audio files for tracks
+function createPlaceholderAudioFiles() {
+  console.log('🎵 Creating placeholder audio files for tracks...');
+  
+  tracksData.forEach(track => {
+    const trackPath = track.audioUrl.replace('/tracks/', '');
+    const fullPath = path.join(tracksDir, trackPath);
+    const dir = path.dirname(fullPath);
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    // Create a minimal MP3 file if it doesn't exist
+    if (!fs.existsSync(fullPath)) {
+      // Create a minimal valid MP3 header (silent audio)
+      const mp3Header = Buffer.from([
+        0xFF, 0xFB, 0x90, 0x00, // MP3 frame header
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+      ]);
+      
+      try {
+        fs.writeFileSync(fullPath, mp3Header);
+        console.log(`   📁 Created placeholder: ${trackPath}`);
+      } catch (error) {
+        console.warn(`   ⚠️  Failed to create placeholder for ${trackPath}:`, error.message);
+      }
+    }
+  });
+}
+
+// Create placeholder files on startup
+createPlaceholderAudioFiles();
 
 // API endpoint to generate track
 app.post('/api/generate-track', validateGenerateTrackInput, async (req, res) => {
@@ -581,6 +632,11 @@ app.get('/api/health', (req, res) => {
         gemini: !!process.env.GOOGLE_API_KEY,
         elevenlabs: !!process.env.ELEVENLABS_API_KEY
       }
+    },
+    staticFiles: {
+      audioDir: fs.existsSync(audioDir),
+      tracksDir: fs.existsSync(tracksDir),
+      publicDir: fs.existsSync(publicDir)
     }
   };
   
@@ -602,9 +658,6 @@ app.get('/api/status', (req, res) => {
     ]
   });
 });
-
-// Serve static audio files
-app.use('/audio', express.static(path.join(__dirname, 'public', 'audio')));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -636,6 +689,8 @@ app.listen(PORT, () => {
   console.log(`📊 Status: http://localhost:${PORT}/api/status`);
   console.log(`🎯 Generate track: POST http://localhost:${PORT}/api/generate-track`);
   console.log(`🎙️ Generate narration: POST http://localhost:${PORT}/api/narrate`);
+  console.log(`🎵 Music tracks: http://localhost:${PORT}/tracks/`);
+  console.log(`🔊 Audio files: http://localhost:${PORT}/audio/`);
   
   // Check API key configuration
   const hasGemini = !!process.env.GOOGLE_API_KEY;
@@ -644,6 +699,11 @@ app.listen(PORT, () => {
   console.log('\n🔑 API Key Status:');
   console.log(`   Google Gemini: ${hasGemini ? '✅ Configured' : '❌ Missing'}`);
   console.log(`   ElevenLabs: ${hasElevenLabs ? '✅ Configured' : '❌ Missing'}`);
+  
+  console.log('\n📁 Directory Status:');
+  console.log(`   Public: ${fs.existsSync(publicDir) ? '✅ Created' : '❌ Missing'}`);
+  console.log(`   Audio: ${fs.existsSync(audioDir) ? '✅ Created' : '❌ Missing'}`);
+  console.log(`   Tracks: ${fs.existsSync(tracksDir) ? '✅ Created' : '❌ Missing'}`);
   
   if (!hasGemini || !hasElevenLabs) {
     console.log('\n⚠️  Some features require API keys:');
