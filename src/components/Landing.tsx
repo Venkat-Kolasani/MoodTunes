@@ -200,7 +200,7 @@ const Landing: React.FC<LandingProps> = ({
             
             {/* Additional Footer Content */}
             <div className="text-orange-200 text-sm">
-              <p>© 2024 MoodTunes. Crafted with AI to transform your emotions into music.</p>
+              <p>© 2025 MoodTunes. Crafted with AI to transform your emotions into music.</p>
             </div>
           </div>
         </div>
