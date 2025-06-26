@@ -16,7 +16,22 @@ const Landing: React.FC<LandingProps> = ({
   const canUseService = userData.isPremium || userData.dailyListens < 3;
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen relative">
+      {/* Built on Bolt Badge - Top Right */}
+      <div className="fixed top-20 right-4 z-50">
+        <a
+          href="https://bolt.new"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center space-x-2 bg-black text-white rounded-full px-4 py-2 text-sm font-medium hover:bg-gray-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+        >
+          <div className="w-6 h-6 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+            <Zap className="w-4 h-4 text-white" />
+          </div>
+          <span>Built on Bolt</span>
+        </a>
+      </div>
+
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-orange-400/20 to-amber-400/20 -z-10" />
