@@ -18,7 +18,7 @@ const TEST_CONFIG = {
   gemini: {
     apiKey: process.env.GOOGLE_API_KEY,
     model: process.env.GOOGLE_GEMINI_MODEL || 'gemini-pro',
-    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models'
+    endpoint: 'https://generativelanguage.googleapis.com/v1/models'
   },
   elevenlabs: {
     apiKey: process.env.ELEVENLABS_API_KEY,
@@ -75,7 +75,16 @@ async function testGeminiAuthentication() {
     if (modelsResponse.ok) {
       const models = await modelsResponse.json();
       console.log(`   ✅ Authentication successful (${models.models?.length || 0} models available)`);
-      
+      // Print all available models and their supported methods
+      if (models.models && Array.isArray(models.models)) {
+        console.log('   Available models:');
+        models.models.forEach(m => {
+          console.log(`     - ${m.name}`);
+          if (m.supportedGenerationMethods) {
+            console.log(`       Supported methods: ${m.supportedGenerationMethods.join(', ')}`);
+          }
+        });
+      }
       // Check if our target model is available
       const targetModel = models.models?.find(m => m.name.includes(TEST_CONFIG.gemini.model));
       if (targetModel) {
@@ -91,7 +100,7 @@ async function testGeminiAuthentication() {
     
     // Test 2: Simple content generation request
     console.log('   Testing content generation...');
-    const generateResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${TEST_CONFIG.gemini.model}:generateContent?key=${TEST_CONFIG.gemini.apiKey}`, {
+    const generateResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/${TEST_CONFIG.gemini.model}:generateContent?key=${TEST_CONFIG.gemini.apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -377,7 +386,5 @@ async function runAllTests() {
 // Export for use in other scripts
 export { runAllTests, testGeminiAuthentication, testElevenLabsAuthentication };
 
-// Run tests if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  runAllTests();
-}
+// Run all tests when the script is executed
+runAllTests();

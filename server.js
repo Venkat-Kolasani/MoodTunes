@@ -220,7 +220,7 @@ Generate a JSON response with:
 Keep it concise and engaging. Respond only with valid JSON.`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GOOGLE_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GOOGLE_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -285,7 +285,7 @@ async function generateMotivationalQuote(mood) {
   const prompt = `Generate a short, powerful motivational quote (1-2 sentences, max 100 words) for someone feeling "${mood}". The quote should be uplifting, encouraging, and help them feel better. Make it personal and inspiring.`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GOOGLE_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GOOGLE_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

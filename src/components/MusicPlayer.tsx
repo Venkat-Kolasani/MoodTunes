@@ -172,16 +172,35 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ track, mood, onBackToHome, is
 
   // Fallback simulation for when audio files don't exist or fail to load
   const simulatePlayback = () => {
+    // If we already have a generated blob audio, try to play it
+    if (track.audioUrl && track.audioUrl.startsWith('blob:')) {
+      const audio = audioRef.current;
+      if (audio) {
+        audio.src = track.audioUrl;
+        audio.load();
+        audio.play().then(() => {
+          setIsPlaying(true);
+        }).catch(() => {
+          // If playback fails, fallback to timer simulation
+          fallbackTimerSim();
+        });
+        return;
+      }
+    }
+    // Otherwise, fallback to timer simulation
+    fallbackTimerSim();
+  };
+
+  // Timer-based simulation (legacy fallback)
+  const fallbackTimerSim = () => {
     if (isPlaying) {
       setIsPlaying(false);
       return;
     }
-
     setIsPlaying(true);
     const totalDurationSeconds = parseDuration(track.duration);
     setDuration(totalDurationSeconds);
     setAudioError(true); // Mark as simulated
-
     const interval = setInterval(() => {
       setCurrentTime(prev => {
         if (prev >= totalDurationSeconds) {
