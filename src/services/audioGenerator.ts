@@ -1,4 +1,11 @@
 // Audio generation service for creating playable fallback tracks
+
+interface Harmonic {
+  frequency: number;
+  amplitude: number;
+  phase?: number;
+}
+
 export class AudioGeneratorService {
   private audioContext: AudioContext | null = null;
   private generatedTracks: Map<string, string> = new Map();
