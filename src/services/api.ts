@@ -23,8 +23,6 @@ export interface GeneratedTrack {
   mood: string;
   genre?: string;
   energy?: string;
-  genre?: string;
-  energy?: string;
   description: string;
   audioUrl: string;
 }
@@ -60,7 +58,7 @@ class ApiService {
       });
 
       const contentType = response.headers.get('content-type');
-      this.isApiAvailable = response.ok && contentType?.includes('application/json');
+      this.isApiAvailable = response.ok && (contentType?.includes('application/json') ?? false);
       this.lastApiCheck = now;
       
       console.log(`🔍 API availability check: ${this.isApiAvailable ? 'Available' : 'Unavailable'}`);
