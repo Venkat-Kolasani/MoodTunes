@@ -17,21 +17,6 @@ const Landing: React.FC<LandingProps> = ({
 
   return (
     <div className="min-h-screen relative">
-      {/* Built on Bolt Badge - Top Right */}
-      <div className="fixed top-20 right-4 z-50">
-        <a
-          href="https://bolt.new"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center space-x-2 bg-black text-white rounded-full px-4 py-2 text-sm font-medium hover:bg-gray-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-        >
-          <div className="w-6 h-6 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
-            <Zap className="w-4 h-4 text-white" />
-          </div>
-          <span>Built on Bolt</span>
-        </a>
-      </div>
-
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-orange-400/20 to-amber-400/20 -z-10" />
@@ -182,23 +167,6 @@ const Landing: React.FC<LandingProps> = ({
       <footer className="bg-gradient-to-r from-orange-900 to-amber-900 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center space-y-4">
-            {/* Built on Bolt Badge */}
-            <div className="flex justify-center">
-              <a
-                href="https://bolt.new"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center space-x-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-6 py-3 text-white hover:bg-white/20 transition-all duration-300 group"
-              >
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-white" />
-                </div>
-                <span className="font-medium text-lg">Built on Bolt</span>
-                <div className="w-2 h-2 bg-white/60 rounded-full group-hover:bg-white transition-colors duration-300"></div>
-              </a>
-            </div>
-            
-            {/* Additional Footer Content */}
             <div className="text-orange-200 text-sm">
               <p>© 2025 MoodTunes. Crafted with AI to transform your emotions into music.</p>
             </div>
