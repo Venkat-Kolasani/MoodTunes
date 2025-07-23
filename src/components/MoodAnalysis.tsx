@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Brain, Sparkles, Music, Heart, AlertCircle, RefreshCw, Mic, CheckCircle, Wifi, WifiOff } from 'lucide-react';
+import { Brain, Sparkles, Music, Heart, AlertCircle, RefreshCw, Mic, CheckCircle, WifiOff } from 'lucide-react';
 import { GeneratedTrack } from '../types';
 import { apiService } from '../services/api';
 import { useApi } from '../hooks/useApi';
@@ -20,7 +20,7 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
   const [isFallbackMode, setIsFallbackMode] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   
-  const { data: track, loading, error, execute } = useApi<GeneratedTrack>();
+  const { loading, error, execute } = useApi<GeneratedTrack>();
   const { 
     data: narration, 
     loading: narrationLoading, 

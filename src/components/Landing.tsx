@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mic, Sparkles, Heart, TrendingUp, Zap } from 'lucide-react';
+import { Mic, Sparkles, Heart, TrendingUp } from 'lucide-react';
 import { UserData } from '../types';
 
 interface LandingProps {
