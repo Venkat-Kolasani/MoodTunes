@@ -12,6 +12,8 @@ export interface GeneratedTrack {
   title: string;
   duration: string;
   mood: string;
+  genre?: string;
+  energy?: string;
   description: string;
   audioUrl: string;
 }

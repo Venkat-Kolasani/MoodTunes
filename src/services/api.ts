@@ -1,5 +1,5 @@
 // API service configuration and methods
-import { fallbackMusicService, FallbackTrack } from './fallbackMusic';
+import { fallbackMusicService } from './fallbackMusic';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -21,6 +21,8 @@ export interface GeneratedTrack {
   title: string;
   duration: string;
   mood: string;
+  genre?: string;
+  energy?: string;
   genre?: string;
   energy?: string;
   description: string;

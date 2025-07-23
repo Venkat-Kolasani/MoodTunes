@@ -22,7 +22,6 @@ const MoodAnalysis: React.FC<MoodAnalysisProps> = ({ mood, onMusicGenerated }) =
   
   const { loading, error, execute } = useApi<GeneratedTrack>();
   const { 
-    data: narration, 
     loading: narrationLoading, 
     error: narrationError, 
     execute: executeNarration 
