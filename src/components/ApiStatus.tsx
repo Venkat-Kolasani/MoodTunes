@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { CheckCircle, XCircle, AlertCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { XCircle, AlertCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { apiService } from '../services/api';
 
 interface ApiStatusProps {

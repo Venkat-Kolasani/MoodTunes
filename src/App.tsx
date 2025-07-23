@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Landing from './components/Landing';
 import MoodCapture from './components/MoodCapture';
 import MoodAnalysis from './components/MoodAnalysis';
@@ -105,7 +105,7 @@ function App() {
           />
         )}
         
-        {currentView === 'musicPlayer' && (
+        {currentView === 'musicPlayer' && userData.generatedTrack && (
           <MusicPlayer 
             track={userData.generatedTrack}
             mood={userData.detectedMood}
