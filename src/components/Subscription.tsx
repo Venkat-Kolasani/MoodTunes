@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Crown, Zap, Music, Heart, TrendingUp } from 'lucide-react';
+import { Check, Crown, Zap, Music, Heart } from 'lucide-react';
 import { UserData } from '../types';
 
 interface SubscriptionProps {

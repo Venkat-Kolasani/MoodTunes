@@ -411,7 +411,7 @@ export class FallbackMusicService {
     const missing: string[] = [];
     let available = 0;
 
-    this.fallbackTracks.forEach(track => {
+    this.fallbackTracks.forEach(_ => {
       // All tracks are available since we generate them on demand
       available++;
     });

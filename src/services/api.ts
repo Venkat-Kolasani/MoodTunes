@@ -170,10 +170,16 @@ class ApiService {
     }
 
     try {
-      return await this.request<GeneratedTrack>('/generate-track', {
+      const response = await this.request<GeneratedTrack>('/generate-track', {
         method: 'POST',
         body: JSON.stringify(request),
       });
+      
+      return {
+        data: response.data,
+        status: response.status,
+        isFallback: response.isFallback ?? false
+      };
     } catch (error) {
       console.log('🔄 API request failed, falling back to offline music');
       const fallbackTrack = await fallbackMusicService.getTrackForMood(request.mood);

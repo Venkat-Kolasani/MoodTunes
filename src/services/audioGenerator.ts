@@ -67,7 +67,7 @@ export class AudioGeneratorService {
           { frequency: 329.63, amplitude: 0.25 }, // E4
           { frequency: 392.00, amplitude: 0.2 }, // G4
           { frequency: 523.25, amplitude: 0.15 }, // C5
-        ],
+        ] as Harmonic[],
         modulation: (time: number) => 1 + 0.1 * Math.sin(time * 0.5)
       },
       sad: {
@@ -75,7 +75,7 @@ export class AudioGeneratorService {
           { frequency: 220.00, amplitude: 0.4 }, // A3
           { frequency: 261.63, amplitude: 0.3 }, // C4
           { frequency: 311.13, amplitude: 0.2 }, // Eb4
-        ],
+        ] as Harmonic[],
         modulation: (time: number) => 1 + 0.05 * Math.sin(time * 0.2)
       },
       energetic: {
@@ -84,7 +84,7 @@ export class AudioGeneratorService {
           { frequency: 554.37, amplitude: 0.25 }, // C#5
           { frequency: 659.25, amplitude: 0.2 }, // E5
           { frequency: 880.00, amplitude: 0.15 }, // A5
-        ],
+        ] as Harmonic[],
         modulation: (time: number) => 1 + 0.2 * Math.sin(time * 2)
       },
       relaxed: {
@@ -92,7 +92,7 @@ export class AudioGeneratorService {
           { frequency: 174.61, amplitude: 0.4 }, // F3
           { frequency: 220.00, amplitude: 0.3 }, // A3
           { frequency: 261.63, amplitude: 0.2 }, // C4
-        ],
+        ] as Harmonic[],
         modulation: (time: number) => 1 + 0.03 * Math.sin(time * 0.1)
       },
       anxious: {
@@ -100,7 +100,7 @@ export class AudioGeneratorService {
           { frequency: 196.00, amplitude: 0.35 }, // G3
           { frequency: 246.94, amplitude: 0.3 }, // B3
           { frequency: 293.66, amplitude: 0.25 }, // D4
-        ],
+        ] as Harmonic[],
         modulation: (time: number) => 1 + 0.08 * Math.sin(time * 0.3)
       },
       romantic: {
@@ -109,7 +109,7 @@ export class AudioGeneratorService {
           { frequency: 293.66, amplitude: 0.3 }, // D4
           { frequency: 349.23, amplitude: 0.25 }, // F4
           { frequency: 466.16, amplitude: 0.2 }, // Bb4
-        ],
+        ] as Harmonic[],
         modulation: (time: number) => 1 + 0.06 * Math.sin(time * 0.4)
       }
     };
